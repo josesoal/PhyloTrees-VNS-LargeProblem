@@ -1,3 +1,12 @@
+/*
+ ============================================================================
+ Authors :
+ 	Jose Luis Soncco-Alvarez and Mauricio Ayala-Rincon
+ 	Group of Theory of Computation
+ 	Universidade de Brasilia (UnB) - Brazil
+ ============================================================================
+ */
+
 #ifndef MEASURE_TIME_H
 #define MEASURE_TIME_H
 

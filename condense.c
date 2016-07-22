@@ -1,3 +1,11 @@
+/*
+ ============================================================================
+ Authors :
+ 	Jose Luis Soncco-Alvarez and Mauricio Ayala-Rincon
+ 	Group of Theory of Computation
+ 	Universidade de Brasilia (UnB) - Brazil
+ ============================================================================
+ */
 
 #include <stdio.h>
 #include <stdlib.h>

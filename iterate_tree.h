@@ -1,3 +1,12 @@
+/*
+ ============================================================================
+ Authors :
+ 	Jose Luis Soncco-Alvarez and Mauricio Ayala-Rincon
+ 	Group of Theory of Computation
+ 	Universidade de Brasilia (UnB) - Brazil
+ ============================================================================
+ */
+
 #ifndef LABEL_TREE_H_
 #define LABEL_TREE_H_
 

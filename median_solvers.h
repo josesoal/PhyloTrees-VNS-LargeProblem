@@ -1,3 +1,12 @@
+/*
+ ============================================================================
+ Authors :
+ 	Jose Luis Soncco-Alvarez and Mauricio Ayala-Rincon
+ 	Group of Theory of Computation
+ 	Universidade de Brasilia (UnB) - Brazil
+ ============================================================================
+ */
+
 #ifndef MEDIAN_SOLVERS_H_
 #define MEDIAN_SOLVERS_H_
 

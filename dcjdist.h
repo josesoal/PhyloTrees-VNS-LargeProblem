@@ -1,3 +1,12 @@
+/*
+ ============================================================================
+ Authors :
+ 	Jose Luis Soncco-Alvarez and Mauricio Ayala-Rincon
+ 	Group of Theory of Computation
+ 	Universidade de Brasilia (UnB) - Brazil
+ ============================================================================
+ */
+
 #ifndef DCJ_DIST_H_
 #define DCJ_DIST_H_
 

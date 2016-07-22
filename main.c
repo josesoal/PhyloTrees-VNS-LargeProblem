@@ -1,3 +1,13 @@
+/*
+ ============================================================================
+ Project    : VNS for the Large Phylogeny Problem
+ File       : main.c
+ Authors    : Jose Luis Soncco-Alvarez and Mauricio Ayala-Rincon
+                Group of Theory of Computation
+                Universidade de Brasilia (UnB) - Brazil
+ ============================================================================
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
