@@ -18,4 +18,7 @@ random.o
 tree.o
 uf.o
 vns.o
+main
 VNS_modifications.txt
+newick_tree.txt
+
