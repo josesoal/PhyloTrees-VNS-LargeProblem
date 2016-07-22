@@ -1,0 +1,10 @@
+#ifndef DCJ_DIST_H_
+#define DCJ_DIST_H_
+
+int DCJdistance( PointDCJPtr *genome1DCJ, PointDCJPtr *genome2DCJ, 
+			int numPoints1DCJ, int numPoints2DCJ, int numberGenes );
+void applyDCJ( PointDCJPtr *genomeDCJ, int *numPointsDCJ, int i, int j, int firstForm );
+
+
+#endif
+
