@@ -18,207 +18,138 @@
 static int findIntersection(CondenseKeyPtr sequenceAPtr, 
 	CondenseKeyPtr sequenceBPtr, int *start, int *end);
 static int isIncludedIn( int a, int start, int end); 
-static void addUniqueKey(SetKeysPtr sKeysPtr, int *ikey, int start, int end);
+static void addUniqueKey( SetKeysPtr setkeysPtr, int *ikey, int start, int end );
 
-void allocateMemoryForKeys(  TreePtr phyloTreePtr, SetKeysPtr setPtr ) 
+void allocateMemoryForRawData( RawDatasetPtr rdatasetPtr )
 {
-	int i,  maxNumKeys;
+	int i;
+	//rdatasetPtr->numberGenomes; this value must be read before entering this function
+	rdatasetPtr->numberGenes = 0;
+	rdatasetPtr->numberChromosomesArray = malloc( rdatasetPtr->numberGenomes * sizeof( int ) );
+	if ( rdatasetPtr->numberChromosomesArray == NULL ) { nomemMessage("rdatasetPtr->numberChromosomesArray"); }
 
-	maxNumKeys = phyloTreePtr->numberGenes / 2;
-	setPtr->condKeysPtrArray = malloc( maxNumKeys * sizeof( CondenseKeyPtr ) );
-	if ( setPtr->condKeysPtrArray == NULL ) { nomemMessage( "setPtr->condKeysPtrArray" ); }
+	for ( i = 0; i < rdatasetPtr->numberGenomes; i++ ) {
+		rdatasetPtr->numberChromosomesArray[ i ] = 0;
+	}
+	rdatasetPtr->rgenomePtrArray = NULL;
+}
 
-	for ( i = 0; i < maxNumKeys; i++ ) {
-		setPtr->condKeysPtrArray[i] = malloc( sizeof( CondenseKey ) );
-		if ( setPtr->condKeysPtrArray[i] == NULL ) { nomemMessage( "setPtr->condKeysPtrArray[i]" ); }
+void allocateMemoryForRawGenomes( RawDatasetPtr rdatasetPtr )
+{
+	int i;
+
+	rdatasetPtr->rgenomePtrArray = malloc( rdatasetPtr->numberGenomes * sizeof( RawGenomePtr ) );
+	if ( rdatasetPtr->rgenomePtrArray == NULL ) { nomemMessage("rdatasetPtr->rgenomePtrArray"); }
+
+	for ( i = 0; i < rdatasetPtr->numberGenomes; i++ ) {
+		rdatasetPtr->rgenomePtrArray[ i ] = malloc( sizeof( RawGenome ) );
+		if ( rdatasetPtr->rgenomePtrArray[ i ] == NULL ) { nomemMessage("rdatasetPtr->rgenomePtrArray[ i ]"); }
+
+        rdatasetPtr->rgenomePtrArray[ i ]->organism = NULL;
+        rdatasetPtr->rgenomePtrArray[ i ]->numberChromosomes = rdatasetPtr->numberChromosomesArray[ i ];
+        rdatasetPtr->rgenomePtrArray[ i ]->chromosomeType = malloc( rdatasetPtr->numberChromosomesArray[ i ] * sizeof( int ) );
+        if ( rdatasetPtr->rgenomePtrArray[ i ]->chromosomeType == NULL ) { 
+            nomemMessage("rdatasetPtr->rgenomePtrArray[ i ]->chromosomeType"); 
+        }
+		rdatasetPtr->rgenomePtrArray[ i ]->numberElements = 
+						rdatasetPtr->numberGenes + rdatasetPtr->numberChromosomesArray[ i ];
+		rdatasetPtr->rgenomePtrArray[ i ]->genome = 
+						malloc( rdatasetPtr->rgenomePtrArray[ i ]->numberElements * sizeof( int ) );
+		if ( rdatasetPtr->rgenomePtrArray[ i ]->genome == NULL ) { 
+            nomemMessage("rdatasetPtr->rgenomePtrArray[ i ]->genes"); 
+        }
 	}
 }
 
-void freeKeys( TreePtr phyloTreePtr, SetKeysPtr setPtr ) 
+void allocateMemoryForKeys( int numberGenes, SetKeysPtr setkeysPtr ) 
 {
 	int i,  maxNumKeys;
 
-	maxNumKeys = phyloTreePtr->numberGenes / 2;
-	for ( i = 0; i < maxNumKeys; i++ ) {
-		free( setPtr->condKeysPtrArray[ i ] );
+	maxNumKeys = numberGenes / 2;
+	setkeysPtr->condkeyPtrArray = malloc( maxNumKeys * sizeof( CondenseKeyPtr ) );
+	if ( setkeysPtr->condkeyPtrArray == NULL ) { 
+		nomemMessage( "setPtr->condkeyPtrArray" ); 
 	}
-	free( setPtr->condKeysPtrArray );
-}
-
-void condenseLeafNodes( TreePtr phyloTreePtr, SetKeysPtr sKeysPtr )
-{
-	int i, j, k, iwrite, otherExtreme;
-
-	for ( i = 0; i < sKeysPtr->numKeys; i++ ) {
-		/* determine the other extreme of the interval */
-		otherExtreme = sKeysPtr->condKeysPtrArray[i]->start;
-		if ( sKeysPtr->condKeysPtrArray[i]->gene == 
-				sKeysPtr->condKeysPtrArray[i]->start) {
-			otherExtreme = sKeysPtr->condKeysPtrArray[i]->end;
-		} 
-		/* condense leaves using key i */
-		for ( j = 0; j < phyloTreePtr->numberLeaves; j++ ) {
-			
-			iwrite = 0;
-			for ( k = 0; k < phyloTreePtr->numberGenes; k++ ) {
-
-				if ( abs(phyloTreePtr->nodesPtrArray[ j ]->genome[ k ]) <= 
-						sKeysPtr->condKeysPtrArray[ i ]->gene ) {
-
-					phyloTreePtr->nodesPtrArray[ j ]->genome[ iwrite ] = 
-						phyloTreePtr->nodesPtrArray[ j ]->genome[ k ];
-					iwrite++;
-				}
-				else if ( abs(phyloTreePtr->nodesPtrArray[ j ]->genome[ k ]) > 
-							otherExtreme ) {
-
-					/* update the gen by subtracting (or adding) the difference */
-					if ( phyloTreePtr->nodesPtrArray[ j ]->genome[ k ] > 0 ) {
-
-						phyloTreePtr->nodesPtrArray[ j ]->genome[ iwrite ] =
-								phyloTreePtr->nodesPtrArray[ j ]->genome[ k ] - 
-								sKeysPtr->condKeysPtrArray[ i ]->diff;
-					}
-					else { // phyloTreePtr->nodesPtrArray[ j ]->genome[ k ] < 0
-
-						phyloTreePtr->nodesPtrArray[ j ]->genome[ iwrite ] =
-								phyloTreePtr->nodesPtrArray[ j ]->genome[ k ] + 
-								sKeysPtr->condKeysPtrArray[ i ]->diff;
-					}
-					iwrite++;
-				}
-			} 
+	for ( i = 0; i < maxNumKeys; i++ ) {
+		setkeysPtr->condkeyPtrArray[i] = malloc( sizeof( CondenseKey ) );
+		if ( setkeysPtr->condkeyPtrArray[i] == NULL ) { 
+			nomemMessage( "setPtr->condkeyPtrArray[i]" ); 
 		}
-		phyloTreePtr->numberGenes = iwrite;
-	}	
-	//show keys ...
-	/*for ( i = 0; i < sKeysPtr->numKeys; i++ ) {
-		printf( "*gene(%d) --> start %d, end %d\n", 
-			sKeysPtr->condKeysPtrArray[ i ]->gene, 
-			sKeysPtr->condKeysPtrArray[ i ]->start, 
-			sKeysPtr->condKeysPtrArray[ i ]->end );
-	}*/ 
-}
-
-/* reverse the condensation of leaf nodes "LEAF_NODE" ( or all nodes "EACH_NODE") */
-void reverseCondensedNodes( TreePtr phyloTreePtr, SetKeysPtr sKeysPtr, int nodeType )
-{
-	int i, j, k, iseq, diff, gene, numberNodes;
-
-	numberNodes = phyloTreePtr->numberNodes;
-	if ( nodeType == LEAF_NODE) {
-		numberNodes = phyloTreePtr->numberLeaves;
 	}
-
-	for ( i = sKeysPtr->numKeys - 1; i >= 0; i-- ) {
-		diff = sKeysPtr->condKeysPtrArray[ i ]->diff;
-		/* reverse condensation of nodes using key i */
-		for ( j = 0; j < numberNodes; j++ ) {
-			/* find gene that represents a sequence */
-			for ( k = 0; k < phyloTreePtr->numberGenes; k++ ) {
-				if ( abs( phyloTreePtr->nodesPtrArray[ j ]->genome[ k ] ) > 
-							sKeysPtr->condKeysPtrArray[ i ]->gene ) {
-
-					if ( phyloTreePtr->nodesPtrArray[ j ]->genome[ k ] > 0 ) {
-						phyloTreePtr->nodesPtrArray[ j ]->genome[ k ] = 
-							phyloTreePtr->nodesPtrArray[ j ]->genome[ k ] + diff;
-					}
-					else { // < 0
-						phyloTreePtr->nodesPtrArray[ j ]->genome[ k ] = 
-							phyloTreePtr->nodesPtrArray[ j ]->genome[ k ] - diff;
-					}
-				}
-				else if ( abs( phyloTreePtr->nodesPtrArray[ j ]->genome[ k ] ) == 
-								sKeysPtr->condKeysPtrArray[ i ]->gene ) {
-					iseq = k;
-					break;
-				}
-			}
-
-			/* make space by shifting to the right */
-			for ( k = phyloTreePtr->numberGenes-1; k > iseq; k-- ) {
-				if ( abs( phyloTreePtr->nodesPtrArray[ j ]->genome[ k ] ) > 
-							sKeysPtr->condKeysPtrArray[ i ]->gene ) {
-
-					if ( phyloTreePtr->nodesPtrArray[ j ]->genome[ k ] > 0 ) {
-						phyloTreePtr->nodesPtrArray[ j ]->genome[ k + diff ] = 
-							phyloTreePtr->nodesPtrArray[ j ]->genome[ k ] + diff;
-					}
-					else{ // < 0
-						phyloTreePtr->nodesPtrArray[ j ]->genome[ k + diff ] = 
-							phyloTreePtr->nodesPtrArray[ j ]->genome[ k ] - diff;
-					}
-				}
-				else { // <
-					phyloTreePtr->nodesPtrArray[ j ]->genome[ k + diff ] = 
-							phyloTreePtr->nodesPtrArray[ j ]->genome[ k ];
-				}
-			}
-
-			/* insert the sequence  */
-			if ( phyloTreePtr->nodesPtrArray[ j ]->genome[ iseq ] > 0 ) { 
-				gene = sKeysPtr->condKeysPtrArray[ i ]->start; 
-			}
-			else { // < 0
-				gene = -1 * sKeysPtr->condKeysPtrArray[ i ]->end; 	
-			}
-			
-			if ( sKeysPtr->condKeysPtrArray[ i ]->orientation == INCREASING ) {
-				for ( k = iseq; k <= iseq + diff; k++ ) {
-					phyloTreePtr->nodesPtrArray[ j ]->genome[ k ] = gene;
-					gene = gene + 1; 	
-				}
-			}
-			else { // sKeysPtr->condKeysPtrArray[i]->orientation == DECREASING
-				for ( k = iseq; k <= iseq + diff; k++ ) {
-					phyloTreePtr->nodesPtrArray[ j ]->genome[ k ] = gene;
-					gene = gene - 1; 	
-				}
-			}
-		}//end-for
-		phyloTreePtr->numberGenes = phyloTreePtr->numberGenes + diff;
-
-	} //end-for
 }
 
-void findSetKeysForCondensingLeaves( TreePtr phyloTreePtr, SetKeysPtr sKeysPtr )
+void freeKeys( int numberGenes, SetKeysPtr setkeysPtr ) 
+{
+	int i,  maxNumKeys;
+
+	maxNumKeys = numberGenes / 2;
+	for ( i = 0; i < maxNumKeys; i++ ) {
+		free( setkeysPtr->condkeyPtrArray[ i ] );
+	}
+	free( setkeysPtr->condkeyPtrArray );
+}
+
+void freeRawDataset( RawDatasetPtr rdatasetPtr )
+{
+	int i;
+	
+	free ( rdatasetPtr->numberChromosomesArray );
+	for ( i = 0; i < rdatasetPtr->numberGenomes; i++ ) {
+		free( rdatasetPtr->rgenomePtrArray[ i ]->genome );
+        free( rdatasetPtr->rgenomePtrArray[ i ]->chromosomeType );
+        free( rdatasetPtr->rgenomePtrArray[ i ]->organism );
+		free( rdatasetPtr->rgenomePtrArray[ i ] );
+	}
+	free( rdatasetPtr->rgenomePtrArray );
+}
+
+void findSetKeysForCondensing( RawDatasetPtr rdatasetPtr, SetKeysPtr setkeysPtr )
 {
 	int i, j, kk, hh, ikey, maxNumKeys;
 	int current, next, start, end, startFound, found, sequenceComplete;
 
 	/* allocate memory for array of setkeys */
-	SetKeysPtr *arrPtr;
-	maxNumKeys = phyloTreePtr->numberGenes / 2;
-	arrPtr = malloc ( phyloTreePtr->numberLeaves * sizeof( SetKeysPtr ) );
-	if ( arrPtr == NULL ) { nomemMessage( "arrPtr" ); }
+	SetKeysPtr *setkeysPtrArray; 
+	maxNumKeys = rdatasetPtr->numberGenes / 2;
+	setkeysPtrArray = malloc ( rdatasetPtr->numberGenomes * sizeof( SetKeysPtr ) );
+	if ( setkeysPtrArray == NULL ) { nomemMessage( "setkeysPtrArray" ); }
 
-	for ( i = 0; i < phyloTreePtr->numberLeaves; i++ ){
-		arrPtr[ i ] = malloc ( sizeof( SetKeys ) );
-		if ( arrPtr[ i ] == NULL ) { nomemMessage( "arrPtr[i]" ); }
+	for ( i = 0; i < rdatasetPtr->numberGenomes; i++ ) {
+		setkeysPtrArray[ i ] = malloc ( sizeof( SetKeys ) );
+		if ( setkeysPtrArray[ i ] == NULL ) { nomemMessage( "setkeysPtrArray[i]" ); }
 
-		arrPtr[ i ]->numKeys = 0;
-		arrPtr[ i ]->condKeysPtrArray = malloc( maxNumKeys * sizeof( CondenseKeyPtr ) );
-		if ( arrPtr[ i ]->condKeysPtrArray == NULL ) { nomemMessage( "arrPtr[i]->condKeysPtrArray" ); }
+		setkeysPtrArray[ i ]->numberKeys = 0;
+		setkeysPtrArray[ i ]->condkeyPtrArray = malloc( maxNumKeys * sizeof( CondenseKeyPtr ) );
+		if ( setkeysPtrArray[ i ]->condkeyPtrArray == NULL ) { 
+			nomemMessage( "setkeysPtrArray[i]->condkeyPtrArray" ); 
+		}
 
 		for ( j = 0; j < maxNumKeys; j++ ) {
-			arrPtr[ i ]->condKeysPtrArray[j] = malloc( sizeof( CondenseKey ) );
-			if ( arrPtr[ i ]->condKeysPtrArray[j] == NULL ) { nomemMessage( "arrPtr[i]->condKeysPtrArray[j]" ); }
+			setkeysPtrArray[ i ]->condkeyPtrArray[j] = malloc( sizeof( CondenseKey ) );
+			if ( setkeysPtrArray[ i ]->condkeyPtrArray[j] == NULL ) { 
+				nomemMessage( "setkeysPtrArray[i]->condkeyPtrArray[j]" ); 
+			}
 		}
 	}
 
-	/* for each genome, enumerate all their sequences  */
-	for ( i = 0; i < phyloTreePtr->numberLeaves; i++ ) {
+	/* for each rawGenome, enumerate all their sequences of consecutive numbers */
+	for ( i = 0; i < rdatasetPtr->numberGenomes; i++ ) {
 		
-		/* find sequences for genome i */
+		/* find sequences for rawGenome i */
 		startFound = FALSE;
 		sequenceComplete = FALSE;
 		ikey = 0;
-		for ( j = 0; j < phyloTreePtr->numberGenes - 1; j++ ) {
-			current = phyloTreePtr->nodesPtrArray[ i ]->genome[ j ];
-			next 	= phyloTreePtr->nodesPtrArray[ i ]->genome[ j + 1 ];
+		for ( j = 0; j < rdatasetPtr->rgenomePtrArray[ i ]->numberElements; j++ ) {
+			/* AVOID case of reaching the simbol $ or @ represented by SPLIT */
+			if ( rdatasetPtr->rgenomePtrArray[ i ]->genome[ j ] == SPLIT ) {
+				continue;
+			}
 
-			/* check if there exists a sequence between current gene and next */
-			if ( abs( next - current ) == 1 ) {
+			current = rdatasetPtr->rgenomePtrArray[ i ]->genome[ j ];
+			next 	= rdatasetPtr->rgenomePtrArray[ i ]->genome[ j + 1 ];
+
+			/* check if there exists a sequence between current and next gene */
+			if ( next != SPLIT && abs( next - current ) == 1 ) {
 				if ( startFound == FALSE ) {
 					start = current;
 					end = next;
@@ -235,8 +166,8 @@ void findSetKeysForCondensingLeaves( TreePtr phyloTreePtr, SetKeysPtr sKeysPtr )
 			}
 
 			/* if a complete sequences was found, then save its interval */
-			if ( ( sequenceComplete == TRUE ) || 
-				(startFound == TRUE && j == phyloTreePtr->numberGenes - 2) ) {
+            if ( sequenceComplete == TRUE ) {
+                //|| (startFound == TRUE && j == numberGenes - 2) ) {
 
 				/* change to positive if necessary */
 				if ( start < 0 ) {
@@ -246,35 +177,35 @@ void findSetKeysForCondensingLeaves( TreePtr phyloTreePtr, SetKeysPtr sKeysPtr )
 				}
 				
 				sequenceComplete = FALSE;
-				arrPtr[ i ]->condKeysPtrArray[ ikey ]->gene 		= start < end ? start : end;
-				arrPtr[ i ]->condKeysPtrArray[ ikey ]->start 		= start;
-				arrPtr[ i ]->condKeysPtrArray[ ikey ]->end 			= end;
-				arrPtr[ i ]->condKeysPtrArray[ ikey ]->diff 		= abs( end - start );
-				arrPtr[ i ]->condKeysPtrArray[ ikey ]->orientation	= start < end ? INCREASING : DECREASING;
+				setkeysPtrArray[ i ]->condkeyPtrArray[ ikey ]->gene 		= start < end ? start : end;
+				setkeysPtrArray[ i ]->condkeyPtrArray[ ikey ]->start 		= start;
+				setkeysPtrArray[ i ]->condkeyPtrArray[ ikey ]->end 			= end;
+				setkeysPtrArray[ i ]->condkeyPtrArray[ ikey ]->diff 		= abs( end - start );
+				setkeysPtrArray[ i ]->condkeyPtrArray[ ikey ]->orientation	= start < end ? INCREASING : DECREASING;
 				ikey++; 
 			} 
 
 		}
-		arrPtr[ i ]->numKeys = ikey;
+		setkeysPtrArray[ i ]->numberKeys = ikey;
 	}
 
-	/* determine if a sequence exists in the other genomes (or is included in other sequence) */
+	/* determine if a sequence exists in the other rawGenomes (or is included in other sequence) */
 	CondenseKey sequenceA, sequenceB;
 	ikey = 0;
-	for ( i = 0; i < phyloTreePtr->numberLeaves; i++ ) {
-		for ( j = 0; j < arrPtr[ i ]->numKeys; j++ ) {
+	for ( i = 0; i < rdatasetPtr->numberGenomes; i++ ) {
+		for ( j = 0; j < setkeysPtrArray[ i ]->numberKeys; j++ ) {
 
-			sequenceA = *arrPtr[ i ]->condKeysPtrArray[ j ];
-			/* find sequence A in the other genomes */
-			for ( kk = 0; kk < phyloTreePtr->numberLeaves; kk++ ) {
-				/* skip the case when the two genomes (i and kk) are the same */
+			sequenceA = *setkeysPtrArray[ i ]->condkeyPtrArray[ j ];
+			/* find sequence A in the other rawGenomes */
+			for ( kk = 0; kk < rdatasetPtr->numberGenomes; kk++ ) {
+				/* skip the case when the two rawGenomes (i and kk) are the same */
 				if ( i == kk ) 
 					continue;
 
-				/* find sequence A in genome kk */
+				/* find sequence A in rawGenome kk */
 				found = FALSE;
-				for ( hh = 0; hh < arrPtr[ kk ]->numKeys; hh++ ) {	
-					sequenceB = *arrPtr[ kk ]->condKeysPtrArray[ hh ];
+				for ( hh = 0; hh < setkeysPtrArray[ kk ]->numberKeys; hh++ ) {	
+					sequenceB = *setkeysPtrArray[ kk ]->condkeyPtrArray[ hh ];
 					found = findIntersection(&sequenceA, &sequenceB, &start, &end);
 					if ( found == TRUE ) { break; }
 				}
@@ -292,42 +223,190 @@ void findSetKeysForCondensingLeaves( TreePtr phyloTreePtr, SetKeysPtr sKeysPtr )
 			}
 			/* if intersection found add to the set of keys */
 			if ( found == TRUE ) {
-				addUniqueKey(sKeysPtr, &ikey, sequenceA.start, sequenceA.end);
+				addUniqueKey(setkeysPtr, &ikey, sequenceA.start, sequenceA.end);
 			}
 			
 		}
 	}
-	sKeysPtr->numKeys = ikey;
+	setkeysPtr->numberKeys = ikey;
 	
-	/* update the intervals of the sequences in the order of appearance */
-	for ( i = 0; i < sKeysPtr->numKeys - 1; i++ ) {
+	/* update the intervals of the sequences */
+	for ( i = 0; i < setkeysPtr->numberKeys - 1; i++ ) {
 		
-		for ( j = i + 1; j < sKeysPtr->numKeys; j++ ) {
+		for ( j = i + 1; j < setkeysPtr->numberKeys; j++ ) {
 
-			if ( sKeysPtr->condKeysPtrArray[ i ]->gene < 
-					sKeysPtr->condKeysPtrArray[ j ]->gene ) {
-
-				start = sKeysPtr->condKeysPtrArray[ j ]->start - sKeysPtr->condKeysPtrArray[ i ]->diff; 
-				end = sKeysPtr->condKeysPtrArray[ j ]->end - sKeysPtr->condKeysPtrArray[ i ]->diff;
+			if ( setkeysPtr->condkeyPtrArray[ i ]->gene < 
+					setkeysPtr->condkeyPtrArray[ j ]->gene ) {
+                //re-calculate "start" and "end" of key j, because an
+                //application of key i will modify elements of key j
+                
+				start = setkeysPtr->condkeyPtrArray[ j ]->start - setkeysPtr->condkeyPtrArray[ i ]->diff; 
+				end = setkeysPtr->condkeyPtrArray[ j ]->end - setkeysPtr->condkeyPtrArray[ i ]->diff;
 				//update interval 
-				sKeysPtr->condKeysPtrArray[ j ]->gene 			= start < end ? start : end;
-				sKeysPtr->condKeysPtrArray[ j ]->start 			= start;
-				sKeysPtr->condKeysPtrArray[ j ]->end 			= end;
-				sKeysPtr->condKeysPtrArray[ j ]->diff 			= abs( end - start );
-				sKeysPtr->condKeysPtrArray[ j ]->orientation	= start < end ? INCREASING : DECREASING;
+				setkeysPtr->condkeyPtrArray[ j ]->gene 			= start < end ? start : end;
+				setkeysPtr->condkeyPtrArray[ j ]->start 		= start;
+				setkeysPtr->condkeyPtrArray[ j ]->end 			= end;
+				setkeysPtr->condkeyPtrArray[ j ]->diff 			= abs( end - start );
+				setkeysPtr->condkeyPtrArray[ j ]->orientation	= start < end ? INCREASING : DECREASING;
 			}
 		}
 	} 
 
 	/* free memory */
-	for ( i = 0; i < phyloTreePtr->numberLeaves; i++ ){
+	for ( i = 0; i < rdatasetPtr->numberGenomes; i++ ){
 		for ( j = 0; j < maxNumKeys; j++ ) {
-			free( arrPtr[ i ]->condKeysPtrArray[ j ] );
+			free( setkeysPtrArray[ i ]->condkeyPtrArray[ j ] );
 		}
-		free( arrPtr[ i ]->condKeysPtrArray );
-		free( arrPtr[ i ] );		
+		free( setkeysPtrArray[ i ]->condkeyPtrArray );
+		free( setkeysPtrArray[ i ] );		
 	}
-	free( arrPtr );
+	free( setkeysPtrArray );
+}
+
+
+void condenseGenomes( RawDatasetPtr rdatasetPtr, SetKeysPtr setkeysPtr )
+{
+	int i, j, k, iwrite, otherExtreme;	
+
+	for ( i = 0; i < setkeysPtr->numberKeys; i++ ) {
+
+		// determine the other extreme of the interval 
+		otherExtreme = setkeysPtr->condkeyPtrArray[i]->start;
+		if ( setkeysPtr->condkeyPtrArray[i]->gene == 
+				setkeysPtr->condkeyPtrArray[i]->start) {
+			otherExtreme = setkeysPtr->condkeyPtrArray[i]->end;
+		} 
+
+		// condense leaves using key i 
+		for ( j = 0; j < rdatasetPtr->numberGenomes; j++ ) {
+			
+			iwrite = 0;
+			for ( k = 0; k < rdatasetPtr->rgenomePtrArray[ j ]->numberElements; k++ ) {
+
+				if ( abs( rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] ) <= 
+								setkeysPtr->condkeyPtrArray[ i ]->gene ) {
+
+					rdatasetPtr->rgenomePtrArray[ j ]->genome[ iwrite ] = 
+								rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ];
+					iwrite++;
+				}
+				else if ( abs( rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] ) > 
+							otherExtreme ) {
+
+					// update the gen by subtracting (or adding) the difference 
+					if ( rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] > 0 ) {
+
+						rdatasetPtr->rgenomePtrArray[ j ]->genome[ iwrite ] =
+								rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] - 
+								setkeysPtr->condkeyPtrArray[ i ]->diff;
+					}
+					else { // rdatasetPtr->rgenomePtrArray[ j ]->rawGenome[ k ] < 0
+
+						rdatasetPtr->rgenomePtrArray[ j ]->genome[ iwrite ] =
+								rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] + 
+								setkeysPtr->condkeyPtrArray[ i ]->diff;
+					}
+					iwrite++;
+				}
+
+			} 
+			rdatasetPtr->rgenomePtrArray[ j ]->numberElements = iwrite;
+		}
+	}	
+
+	/* update number of genes */
+	for ( i = 0; i < setkeysPtr->numberKeys; i++ ) {
+		rdatasetPtr->numberGenes = rdatasetPtr->numberGenes - setkeysPtr->condkeyPtrArray[ i ]->diff;
+	} 
+}
+
+void showKeys( SetKeysPtr setkeysPtr ) 
+{
+	int i;
+	for ( i = 0; i < setkeysPtr->numberKeys; i++ ) {
+		printf( "*gene(%d) --> start %d, end %d, diff %d\n", 
+			setkeysPtr->condkeyPtrArray[ i ]->gene, 
+			setkeysPtr->condkeyPtrArray[ i ]->start, 
+			setkeysPtr->condkeyPtrArray[ i ]->end,
+			setkeysPtr->condkeyPtrArray[ i ]->diff );
+	} 
+}
+
+void unpackCondensedGenomes( RawDatasetPtr rdatasetPtr, SetKeysPtr setkeysPtr )
+{
+	int i, j, k, iseq, diff, gene;
+
+	for ( i = setkeysPtr->numberKeys - 1; i >= 0; i-- ) {
+		diff = setkeysPtr->condkeyPtrArray[ i ]->diff;
+		// reverse condensation of nodes using key i 
+		for ( j = 0; j < rdatasetPtr->numberGenomes; j++ ) {
+			// find gene that represents a sequence 
+			for ( k = 0; k < rdatasetPtr->rgenomePtrArray[ j ]->numberElements; k++ ) {
+				if ( abs( rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] ) > 
+							setkeysPtr->condkeyPtrArray[ i ]->gene ) {
+
+					if ( rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] > 0 ) {
+						rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] = 
+							rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] + diff;
+					}
+					else { // < 0
+						rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] = 
+							rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] - diff;
+					}
+				}
+				else if ( abs( rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] ) == 
+								setkeysPtr->condkeyPtrArray[ i ]->gene ) {
+					iseq = k;
+					break;
+				}
+			}
+
+			// make space by shifting to the right 
+			for ( k = rdatasetPtr->rgenomePtrArray[ j ]->numberElements - 1; k > iseq; k-- ) {
+				if ( abs( rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] ) > 
+							setkeysPtr->condkeyPtrArray[ i ]->gene ) {
+
+					if ( rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] > 0 ) {
+						rdatasetPtr->rgenomePtrArray[ j ]->genome[ k + diff ] = 
+							rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] + diff;
+					}
+					else{ // < 0
+						rdatasetPtr->rgenomePtrArray[ j ]->genome[ k + diff ] = 
+							rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] - diff;
+					}
+				}
+				else { // < (includes case when genome[k] is zero)
+					rdatasetPtr->rgenomePtrArray[ j ]->genome[ k + diff ] = 
+							rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ];
+				}
+			}
+
+			// insert the sequence  
+			if ( rdatasetPtr->rgenomePtrArray[ j ]->genome[ iseq ] > 0 ) { 
+				gene = setkeysPtr->condkeyPtrArray[ i ]->start; 
+			}
+			else { // < 0
+				gene = -1 * setkeysPtr->condkeyPtrArray[ i ]->end; 	
+			}
+			
+			if ( setkeysPtr->condkeyPtrArray[ i ]->orientation == INCREASING ) {
+				for ( k = iseq; k <= iseq + diff; k++ ) {
+					rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] = gene;
+					gene = gene + 1; 	
+				}
+			}
+			else { // setkeysPtr->condkeyPtrArray[i]->orientation == DECREASING
+				for ( k = iseq; k <= iseq + diff; k++ ) {
+					rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] = gene;
+					gene = gene - 1; 	
+				}
+			}
+			rdatasetPtr->rgenomePtrArray[ j ]->numberElements = 
+						rdatasetPtr->rgenomePtrArray[ j ]->numberElements + diff;
+		}//end-for
+		rdatasetPtr->numberGenes = rdatasetPtr->numberGenes + diff;
+
+	} //end-for
 }
 
 /* Note: elements in the input sequence A and B must be positives */
@@ -412,28 +491,25 @@ static int isIncludedIn( int a, int start, int end)
 	} 
 }
 
-static void addUniqueKey(SetKeysPtr sKeysPtr, int *ikey, int start, int end)
+static void addUniqueKey(SetKeysPtr setkeysPtr, int *ikey, int start, int end)
 {
 	int i, found;
 
 	found = FALSE;
 	for ( i = 0; i < *ikey; i++ ) {
-		if ( sKeysPtr->condKeysPtrArray[ i ]->start == start && 
-					sKeysPtr->condKeysPtrArray[ i ]->end == end ) {
+		if ( setkeysPtr->condkeyPtrArray[ i ]->start == start && 
+					setkeysPtr->condkeyPtrArray[ i ]->end == end ) {
 			found = TRUE;
 			break;
 		}
 	} 
 
 	if ( found == FALSE ) {
-		sKeysPtr->condKeysPtrArray[ *ikey ]->gene 			= start < end ? start : end;
-		sKeysPtr->condKeysPtrArray[ *ikey ]->start 			= start;
-		sKeysPtr->condKeysPtrArray[ *ikey ]->end 			= end;
-		sKeysPtr->condKeysPtrArray[ *ikey ]->diff 			= abs( end - start );
-		sKeysPtr->condKeysPtrArray[ *ikey ]->orientation	= start < end ? INCREASING : DECREASING;
+		setkeysPtr->condkeyPtrArray[ *ikey ]->gene 			= start < end ? start : end;
+		setkeysPtr->condkeyPtrArray[ *ikey ]->start 		= start;
+		setkeysPtr->condkeyPtrArray[ *ikey ]->end 			= end;
+		setkeysPtr->condkeyPtrArray[ *ikey ]->diff 			= abs( end - start );
+		setkeysPtr->condkeyPtrArray[ *ikey ]->orientation	= start < end ? INCREASING : DECREASING;
 		( *ikey )++;				
 	}
 }
-
-
-

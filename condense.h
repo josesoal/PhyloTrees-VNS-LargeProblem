@@ -14,6 +14,28 @@
 
 #define INCREASING 0
 #define DECREASING 1
+#define SPLIT 0 	/* split between two chrosomomes represents a $ or @ */
+#define LINEAR 0 	/* $ */
+#define CIRCULAR 1 	/* @ */
+
+struct rawGenome {
+	int *genome;
+	int numberElements; /* num of elements of genome: number of genes + number of symbols($ and @) */
+	int *chromosomeType; /* array of linear($) or circular(@) symbols */
+	int numberChromosomes;
+	char *organism;
+}; 
+typedef struct rawGenome RawGenome;
+typedef RawGenome *RawGenomePtr;
+
+struct rawDataset {
+	int numberGenomes;
+	int numberGenes;
+	int *numberChromosomesArray;
+	RawGenomePtr *rgenomePtrArray;	
+};
+typedef struct rawDataset RawDataset;
+typedef RawDataset *RawDatasetPtr;
 
 struct condenseKey {
 	int gene;		/* the lower extreme (start or end) */
@@ -25,17 +47,22 @@ struct condenseKey {
 typedef struct condenseKey CondenseKey;
 typedef CondenseKey *CondenseKeyPtr;
 
+/* set of keys for condensation */
 struct setKeys {
-	CondenseKeyPtr *condKeysPtrArray;
-	int numKeys;
+	CondenseKeyPtr *condkeyPtrArray;
+	int numberKeys;
 };
 typedef struct setKeys SetKeys;
 typedef SetKeys *SetKeysPtr;
 
-void allocateMemoryForKeys( TreePtr phyloTreePtr, SetKeysPtr setPtr );
-void freeKeys( TreePtr phyloTreePtr, SetKeysPtr setPtr ); 
-void condenseLeafNodes( TreePtr phyloTreePtr, SetKeysPtr setPtr );
-void reverseCondensedNodes( TreePtr phyloTreePtr, SetKeysPtr sKeysPtr, int nodeType );
-void findSetKeysForCondensingLeaves( TreePtr phyloTreePtr, SetKeysPtr sKeysPtr );
+void allocateMemoryForRawData( RawDatasetPtr rdatasetPtr);
+void allocateMemoryForRawGenomes( RawDatasetPtr rdatasetPtr );
+void allocateMemoryForKeys( int numberGenes, SetKeysPtr setkeysPtr );
+void freeKeys( int numberGenes, SetKeysPtr setkeysPtr );
+void freeRawDataset( RawDatasetPtr rdatasetPtr );
+void findSetKeysForCondensing( RawDatasetPtr rdatasetPtr, SetKeysPtr setkeysPtr );
+void condenseGenomes( RawDatasetPtr rdatasetPtr, SetKeysPtr setkeysPtr );
+void unpackCondensedGenomes( RawDatasetPtr rdatasetPtr, SetKeysPtr setkeysPtr );
+void showKeys( SetKeysPtr setkeysPtr );
 
 #endif

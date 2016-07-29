@@ -25,10 +25,11 @@
 
 void initParameters( ParametersPtr paramsPtr);
 void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr );
-int readNumberGenomes( ParametersPtr paramsPtr );
-int readNumberGenes( ParametersPtr paramsPtr, int numberGenomes );
-//function: determine number of chromosomes, inversion distance just
-// works with unicrhomosomal genomes.
+int readNumberGenomes( char *filename );
+void readNumberGenesAndChromosomes( char *filename, RawDatasetPtr rdatasetPtr );
+void readRawGenomes( char *filename, RawDatasetPtr rdatasetPtr );
+
+//int readNumberGenes( ParametersPtr paramsPtr, int numberGenomes );
 
 int main( int argc, char **argv )
 {
@@ -36,7 +37,8 @@ int main( int argc, char **argv )
     gettimeofday( &t_ini, NULL );//---------------------------------take start time--
     
     Tree            phyloTree;
-    SetKeys         sKeys;  /* set of keys for condensing genomes */
+    RawDataset      rdataset;
+    SetKeys         setkeys;  /* set of keys for condensing genomes */
     int             score;
     Parameters      params;
 
@@ -44,7 +46,7 @@ int main( int argc, char **argv )
     readCommandLine( argc, argv, &params );
     srand( params.seed ); if ( DEBUG ) { printf( "\nseed: %d\n", params.seed ); }
 
-    phyloTree.numberLeaves = readNumberGenomes( &params );
+    /* phyloTree.numberLeaves = readNumberGenomes( &params );
     phyloTree.numberGenes = readNumberGenes( &params, phyloTree.numberLeaves );
     allocateMemoryForNodes( &phyloTree, &params );//--from tree.c
     readGenomesFromFile( &phyloTree, &params );//--from tree.c
@@ -53,7 +55,28 @@ int main( int argc, char **argv )
         allocateMemoryForKeys( &phyloTree, &sKeys );//--from condense.c
         findSetKeysForCondensingLeaves( &phyloTree, &sKeys );//--from condense.c
         condenseLeafNodes( &phyloTree, &sKeys );//--from condense.c
-	}
+	} */
+
+    /* read raw data */
+    rdataset.numberGenomes = readNumberGenomes( params.testsetName );
+    allocateMemoryForRawData( &rdataset );//--from condense.c
+    readNumberGenesAndChromosomes( params.testsetName, &rdataset );
+    allocateMemoryForRawGenomes( &rdataset );//--from condense.c
+    readRawGenomes( params.testsetName, &rdataset );
+
+    /* condense raw data */
+    allocateMemoryForKeys( rdataset.numberGenes, &setkeys );//--from condense.c
+    findSetKeysForCondensing( &rdataset, &setkeys );//--from condense.c
+    condenseGenomes( &rdataset, &setkeys );//--from condense.c
+
+    /* read genomes from raw data into phylogenetic tree */
+    phyloTree.numberLeaves = rdataset.numberGenomes;
+    phyloTree.numberGenes = rdataset.numberGenes; 
+    allocateMemoryForNodes( &phyloTree, &params );//--from tree.c
+    //CONTINUE HERE... (create a function that read)
+
+
+    return 0;//delete this
 
     score = createInitialTreeTopology( &phyloTree, &params ); //--from tree.c
     score = VNS( &phyloTree, &params );//--from vns.c
@@ -62,9 +85,9 @@ int main( int argc, char **argv )
     score = exhaustiveSubtreeScramble( &phyloTree, &params, score );
     score = exhaustiveLeafSwap( &phyloTree, &params, score );
     
-    if ( params.distanceType == INVERSION_DIST ) {
-        reverseCondensedNodes( &phyloTree, &sKeys, EACH_NODE );//--from condense.c
-    }
+    /*if ( params.distanceType == INVERSION_DIST ) {
+        reverseCondensedNodes( &phyloTree, &setkeys, EACH_NODE );//--from condense.c
+    }*/
 
     gettimeofday( &t_fin, NULL );//---------------------------------take final time--
     double timediff = timeval_diff( &t_fin, &t_ini );//--from measure_time.h
@@ -77,7 +100,7 @@ int main( int argc, char **argv )
 
     /* free memory */
     if ( params.distanceType == INVERSION_DIST ) {
-        freeKeys( &phyloTree, &sKeys );//--from condense.c
+        freeKeys( rdataset.numberGenes, &setkeys );//--from condense.c
     }
     freeTree( &phyloTree, &params );//--from tree.c
 
@@ -173,15 +196,15 @@ void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
     }
 }
 
-int readNumberGenomes( ParametersPtr paramsPtr )
+int readNumberGenomes( char *filename )
 {   
     FILE *filePtr;
     int c; /* use int (not char) for the EOF */
     int charCounter = 0;
     int newlineCounter = 0;
 
-    if ( ( filePtr = fopen( paramsPtr->testsetName, "r" ) ) == NULL ) {
-        fprintf( stderr, " stderr: %s file could not be opened\n", paramsPtr->testsetName );
+    if ( ( filePtr = fopen( filename , "r" ) ) == NULL ) {
+        fprintf( stderr, " stderr: %s file could not be opened\n", filename  );
         exit( EXIT_FAILURE );
     }
     else {
@@ -209,48 +232,56 @@ int readNumberGenomes( ParametersPtr paramsPtr )
             charCounter = 0;
         }
     }
-//printf("newlineCounter: %d\n", newlineCounter); 
-    if ( newlineCounter == 0 || newlineCounter % 2 != 0 ) {
-        fprintf( stderr, " stderr: data of %s file has incorrect format\n", paramsPtr->testsetName );
-        exit( EXIT_FAILURE );
-    }
 
     fclose( filePtr );
 
+    //printf("newlineCounter: %d\n", newlineCounter); 
+    if ( newlineCounter == 0 || newlineCounter % 2 != 0 ) {
+        fprintf( stderr, " stderr: data of %s file has incorrect format\n", filename  );
+        exit( EXIT_FAILURE );
+    }
+
     if ( newlineCounter / 2 <= 3) {
-        fprintf( stderr, " stderr: the number of genomes of %s file must be  greater than 3.\n", paramsPtr->testsetName );
+        fprintf( stderr, " stderr: the number of genomes of %s file must be  greater than 3.\n", filename );
         exit( EXIT_FAILURE );
     }
     return newlineCounter / 2;
 }
 
-int readNumberGenes( ParametersPtr paramsPtr, int numberGenomes )
+/* NOTE: before calling this function initialize with zero: numberGenes, 
+        and elements of numberChromosomesArray */
+void readNumberGenesAndChromosomes( char *filename, RawDatasetPtr rdatasetPtr )  
 {
     FILE *filePtr;
     int c, lastc; /* use int (not char) for the EOF */
-    int numberGenes, count, i, num;
+    int count, i, k;
 
-    if ( ( filePtr = fopen( paramsPtr->testsetName, "r" ) ) == NULL ) {
-        fprintf( stderr, " stderr: %s file could not be opened\n", paramsPtr->testsetName );
+    if ( ( filePtr = fopen( filename, "r" ) ) == NULL ) {
+        fprintf( stderr, 
+            " stderr: %s file could not be opened\n", filename );
         exit( EXIT_FAILURE );
     }
-    else {
-        numberGenes = 0;
-        /* read first line and discard*/
+    else {              
+        /* read first line and discard */
         while ( ( c = fgetc( filePtr ) ) != EOF ) {
             if ( c == '\n' )
                 break;
         }
         /* read second line and count number of genes */
-        i=0; /* digit counter*/
+        i = 0; /* digit counter*/
         while ( ( c = fgetc( filePtr ) ) != EOF ) {
             if ( c == ' ' || c == '@' || c == '$' || c == '\n' ) {
                 /* if the digit counter "i" has at least one digit 
                 * increment the genes counter */
-                if ( i > 0 ) { 
-                    numberGenes++;
+                if ( i > 0 ) {
+                    rdatasetPtr->numberGenes++; 
+                    //( *numberGenes )++;
                 }
                 i = 0; /* re-start digit counter */
+
+                if ( c == '@' || c == '$' ) {
+                    rdatasetPtr->numberChromosomesArray[ 0 ]++;
+                }
 
                 if ( c == '\n' )
                     break;
@@ -261,7 +292,7 @@ int readNumberGenes( ParametersPtr paramsPtr, int numberGenomes )
         }
 
         /* verify if the other genomes have the same number of genes */
-        for ( num = 1; num < numberGenomes; num++ ) {
+        for ( k = 1; k < rdatasetPtr->numberGenomes; k++ ) {
             count = 0;
             /* read name_of_genome line and discard */
             while ( ( c = fgetc( filePtr ) ) != EOF ) {
@@ -283,6 +314,10 @@ int readNumberGenes( ParametersPtr paramsPtr, int numberGenomes )
                     }
                     i = 0;
 
+                    if ( c == '@' || c == '$' ) {
+                        rdatasetPtr->numberChromosomesArray[ k ]++;
+                    }
+
                     if ( c == '\n' )
                         break;
                 }
@@ -293,20 +328,98 @@ int readNumberGenes( ParametersPtr paramsPtr, int numberGenomes )
             }
 
             if ( lastc != '@' && lastc != '$' ) {
-                fprintf( stderr, " stderr: there is a genome whose last char is not @ or $ in %s\n", paramsPtr->testsetName ); 
+                fprintf( stderr, 
+                    " stderr: there is a genome whose last char is not @ or $ in %s\n", filename ); 
                 exit( EXIT_FAILURE );
             }
 
-            if ( numberGenes != count ) {
-                fprintf( stderr, " stderr: number of genes are not the same in %s\n", paramsPtr->testsetName ); 
+            if ( rdatasetPtr->numberGenes != count ) {
+                fprintf( stderr, 
+                    " stderr: number of genes are not the same in %s\n", filename ); 
                 exit( EXIT_FAILURE );
             } 
         }
     }
 
     fclose( filePtr );
-
-    return numberGenes;
 }
 
+/* Read "Raw" genomes, that is, genomes before condensation */
+void readRawGenomes( char *filename, RawDatasetPtr rdatasetPtr )
+{
+    FILE *filePtr;
+    int c; /* use int (not char) for the EOF */
+    int i, j, k, h;
+    char buffer[ MAX_STRING_LEN ];
+
+    if ( ( filePtr = fopen( filename, "r" ) ) == NULL ) {
+        fprintf( stderr, " stderr: %s file could not be opened.\n", filename );
+        exit( EXIT_FAILURE );
+    }
+    else {
+        /* read genomes from file into leaves */
+        for( i = 0; i < rdatasetPtr->numberGenomes; i++ ) {
+            /* verify that char symbol '>' exists */
+            if ( ( c = fgetc( filePtr ) ) != EOF ) {
+                if ( c != '>' ) {
+                    fprintf( stderr, " stderr: incorrect format of organism name in %s.\n", filename );
+                    exit( EXIT_FAILURE );
+                }
+            }
+            /* read organism name into buffer */
+            k = 0;
+            while ( ( c = fgetc( filePtr ) ) != EOF ) {
+                if ( c == '\n' ) {
+                    buffer[ k ] = '\0';
+                    break;
+                }
+                else {
+                    buffer[ k ] = c;
+                    k++;
+
+                    if ( k + 1 > MAX_STRING_LEN) {
+                        fprintf( stderr, " stderr: increment MAX_STRING_LEN value!\n" );
+                        exit( EXIT_FAILURE );
+                    }
+                }
+            }
+
+            /* copy buffer into leaf node*/
+            rdatasetPtr->rgenomePtrArray[ i ]->organism = malloc( ( k + 1 ) * sizeof( char ) );
+            strcpy( rdatasetPtr->rgenomePtrArray[ i ]->organism, buffer ); 
+
+            /* read genes from next line*/
+            k = 0; j = 0; h = 0;
+            while ( ( c = fgetc( filePtr ) ) != EOF ) {
+                if ( c == ' ' || c == '@' || c == '$' || c == '\n' ){
+                    buffer[ k ] = '\0';
+                    if ( k > 0 ) {
+                        rdatasetPtr->rgenomePtrArray[ i ]->genome[ j ] = atoi( buffer );
+                        j++;
+                        //printf("%d,", atoi(buffer));    
+                    }
+                    k = 0;
+
+                    if ( c == '@' || c == '$') {
+                        rdatasetPtr->rgenomePtrArray[ i ]->genome[ j ] = SPLIT;
+                        rdatasetPtr->rgenomePtrArray[ i ]->chromosomeType[ h ] = 
+                                        ( c == '@' ? CIRCULAR : LINEAR );
+                        j++;
+                        h++;
+                    }
+
+                    if ( c == '\n' )
+                        break;
+                }
+                else { // c should be a digit
+                    buffer[ k ] = c;
+                    k++;
+                }
+            }
+
+        }//end for
+    }
+
+    fclose( filePtr );
+}
 
