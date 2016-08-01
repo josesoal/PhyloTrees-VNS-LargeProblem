@@ -17,8 +17,8 @@
 #include "iterate_tree.h"
 #include "dcjdist.h"
 
-static void readGenomes( TreePtr phyloTreePtr, char *filename );
-static void readGenomesDCJ( TreePtr phyloTreePtr, char *filename );
+static void readGenomes( TreePtr phyloTreePtr, RawDatasetPtr rdatasetPtr );
+static void readGenomesDCJ( TreePtr phyloTreePtr, RawDatasetPtr rdatasetPtr );
 static void createTreeTopologyRandomly( TreePtr phyloTreePtr );
 static void createTreeRandomLeaf_FirstBestEdge( TreePtr phyloTreePtr, ParametersPtr paramsPtr );
 static void createTreeWith3LeavesRandomly( TreePtr phyloTreePtr );
@@ -240,204 +240,117 @@ void copyTreeInto( TreePtr phyloTree1Ptr,
     }
 }
 
-void readGenomesFromFile( TreePtr phyloTreePtr, ParametersPtr paramsPtr ) 
+void readGenomesFromRawData( 
+    TreePtr phyloTreePtr, ParametersPtr paramsPtr, RawDatasetPtr rdatasetPtr ) 
 {
     if ( paramsPtr->distanceType == INVERSION_DIST ) {
-        readGenomes( phyloTreePtr, paramsPtr->testsetName );
+        readGenomes( phyloTreePtr, rdatasetPtr );
     }
     else if ( paramsPtr->distanceType == DCJ_DIST ) {
-        readGenomesDCJ( phyloTreePtr, paramsPtr->testsetName );        
+        readGenomesDCJ( phyloTreePtr, rdatasetPtr );        
     }
     else {
-        fprintf( stderr, " stderr: incorrect distance [freeTree(...)].\n" );
+        fprintf( stderr, " stderr: incorrect distance [readGenomesFromRawData(...)].\n" );
         exit( EXIT_FAILURE );
-    }  
+    }
 }
 
-static void readGenomes( TreePtr phyloTreePtr, char *filename )
+static void readGenomes( TreePtr phyloTreePtr, RawDatasetPtr rdatasetPtr )
 {
-	FILE *filePtr;
-    int c, lastEndSymbol, endSymbol; /* use int (not char) for the EOF */
-    int i,j,k;
-    char buffer[ MAX_STRING_LEN ];
+    int i, j, k;
+    int endSymbol, previousEndSymbol;
 
-    if ( ( filePtr = fopen( filename, "r" ) ) == NULL ) {
-        fprintf( stderr, " stderr: %s file could not be opened.\n", filename );
-        exit( EXIT_FAILURE );
-    }
-    else {
-    	/* read genomes from file into leaves */
-    	for( i = 0; i < phyloTreePtr->numberLeaves; i++ ) {
-    		/* verify that char symbol '>' exists */
-    		if ( ( c = fgetc( filePtr ) ) != EOF ) {
-				if ( c != '>' ) {
-					fprintf( stderr, " stderr: incorrect format of organism name in %s.\n", filename );
-        			exit( EXIT_FAILURE );
-				}
-			}
-			/* read organism name into buffer */
-			k = 0;
-            while ( ( c = fgetc( filePtr ) ) != EOF ) {
-                if ( c == '\n' ) {
-                	buffer[ k ] = '\0';
-                    break;
+    for( i = 0; i < phyloTreePtr->numberLeaves; i++ ) {
+        phyloTreePtr->nodesPtrArray[ i ]->organism = rdatasetPtr->rgenomePtrArray[ i ]->organism;
+
+        if ( rdatasetPtr->numberChromosomesArray[ i ] > 1 ) {
+            fprintf( stderr, " stderr: reversal distance just support single-chromosome genomes.\n" );
+            exit( EXIT_FAILURE );
+        }
+        else {
+            k = 0;
+            /* read a genome i */
+            for ( j = 0; j < rdatasetPtr->rgenomePtrArray[ i ]->numberElements; j++ ) {
+                if ( rdatasetPtr->rgenomePtrArray[ i ]->genome[ j ] == SPLIT ) {
+                    endSymbol = rdatasetPtr->rgenomePtrArray[ i ]->chromosomeType[ 0 ];
                 }
                 else {
-                	buffer[ k ] = c;
-                	k++;
-
-                    if ( k + 1 > MAX_STRING_LEN) {
-                        fprintf( stderr, " stderr: increment MAX_STRING_LEN value!\n" );
-                        exit( EXIT_FAILURE );
-                    }
-                }
-            }
-            /* copy buffer into leaf node*/
-            phyloTreePtr->nodesPtrArray[ i ]->organism = malloc( ( k + 1 ) * sizeof( char ) );
-            strcpy( phyloTreePtr->nodesPtrArray[ i ]->organism, buffer ); 
-
-            /* read genes from next line*/
-            k = 0; j = 0;
-            while ( ( c = fgetc( filePtr ) ) != EOF ) {
-                if ( c == ' ' || c == '@' || c == '$' || c == '\n' ){
-                    buffer[ k ] = '\0';
-                    if ( k > 0 ) {
-                        phyloTreePtr->nodesPtrArray[ i ]->genome[ j ] = atoi( buffer );
-                        j++;
-                        //printf("%d,", atoi(buffer));    
-                    }
-                    k = 0;
-
-                    if ( c == '@' || c == '$')
-                        endSymbol = c;
-                    if ( c == '\n' )
-                        break;
-                }
-                else { // c should be a digit
-                    buffer[ k ] = c;
+                    phyloTreePtr->nodesPtrArray[ i ]->genome[ k ] = 
+                            rdatasetPtr->rgenomePtrArray[ i ]->genome[ j ];
                     k++;
-                }
+                }    
             }
 
-            /* if genomes are not all circular or all linear, then EXIT */
-            if ( i > 0 && endSymbol != lastEndSymbol) {
-                fprintf( stderr, " stderr: genomes must be all circular (@) or all linear ($) in %s\n", filename ); 
+            if ( i > 0 && ( endSymbol != previousEndSymbol ) ) {
+                fprintf( stderr, " stderr: genomes must be all circular (@)" ); 
+                fprintf( stderr, " or all linear ($) for reversal distance.\n" ); 
                 exit( EXIT_FAILURE );
             }
-            lastEndSymbol = endSymbol;
+            previousEndSymbol = endSymbol;
+        }
 
-    	}//end for
-	}
-	fclose( filePtr );
+    }
 }
 
-static void readGenomesDCJ( TreePtr phyloTreePtr, char *filename ) 
+static void readGenomesDCJ( TreePtr phyloTreePtr, RawDatasetPtr rdatasetPtr )
 {
-    FILE *filePtr;
-    int c; /* use int (not char) for the EOF */
-    int i, j, k, temp, a, b, num, newChromosome, initIndex;
-    char buffer[ MAX_STRING_LEN ];
+    int i, j, k, h, init;
+    int temp, a, b, num, newChromosome;
 
-    if ( ( filePtr = fopen( filename, "r" ) ) == NULL ) {
-        fprintf( stderr, " stderr: %s file could not be opened.\n", filename );
-        exit( EXIT_FAILURE );
-    }
-    else {
-        /* read genomes from file into leaves */
-        for( i = 0; i < phyloTreePtr->numberLeaves; i++ ) {
-            /* verify that char symbol '>' exists */
-            if ( ( c = fgetc( filePtr ) ) != EOF ) {
-                if ( c != '>' ) {
-                    fprintf( stderr, " stderr: incorrect format of organism name in %s.\n", filename );
-                    exit( EXIT_FAILURE );
-                }
-            }
-            /* read organism name into buffer */
-            k = 0;
-            while ( ( c = fgetc( filePtr ) ) != EOF ) {
-                if ( c == '\n' ) {
-                    buffer[ k ] = '\0';
-                    break;
-                }
-                else {
-                    buffer[ k ] = c;
-                    k++;
+    for( i = 0; i < phyloTreePtr->numberLeaves; i++ ) {
+        phyloTreePtr->nodesPtrArray[ i ]->organism = rdatasetPtr->rgenomePtrArray[ i ]->organism;
 
-                    if ( k + 1 > MAX_STRING_LEN ) {
-                        fprintf( stderr, " stderr: increment MAX_STRING_LEN value!\n" );
-                        exit( EXIT_FAILURE );
-                    }
-                }
-            }
-            /* copy buffer into leaf node*/
-            phyloTreePtr->nodesPtrArray[ i ]->organism = malloc( ( k + 1 ) * sizeof( char ) );
-            strcpy( phyloTreePtr->nodesPtrArray[ i ]->organism, buffer ); 
+        init = 0; k = 1; h = 0;
+        temp = 0; a = 0; b = 0;
+        newChromosome = TRUE;
 
+        for ( j = 0; j < rdatasetPtr->rgenomePtrArray[ i ]->numberElements; j++ ) {
             /* NOTE: how to encode a gene either positive or negative
             gen a: tail (-a), head (+a)
             gen -a: head (+a), tail (-a)*/ 
 
-            /* read the remaining genes of the line */
-            initIndex = 0;
-            k = 0; j = 1;
-            temp = 0; a = 0; b = 0;
-            newChromosome = TRUE;
-            while ( ( c = fgetc( filePtr ) ) != EOF ) {
-                if ( c == ' ' || c == '@' || c == '$' || c == '\n' ) {
-                    buffer[ k ] = '\0';
-                    if ( k > 0 ) {
-                        num = atoi( buffer );
+            num = rdatasetPtr->rgenomePtrArray[ i ]->genome[ j ];
 
-                        if ( newChromosome == TRUE ) {
-                            temp = -1 * num;
-                            a = num;
-                            newChromosome = FALSE;
-                        }
-                        else {
-                            b = -1 * num;
-                            phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ j ]->x = a;                         
-                            phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ j ]->y = b;
-                            phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ j ]->type = ADJACENCY;
-                            a = num;
-                            j++;
-                        }
-                    }
-                    k = 0;
-
-                    if ( c == '$' ) {
-                        phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ initIndex ]->x = temp;                         
-                        phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ initIndex ]->y = temp;
-                        phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ initIndex ]->type = TELOMERE;
-                        
-                        phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ j ]->x = a;                         
-                        phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ j ]->y = a;
-                        phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ j ]->type = TELOMERE;
-                        j++; initIndex = j;
-                        j++;
-                        newChromosome = TRUE;
-                    }
-
-                    if ( c == '@' ) {
-                        phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ initIndex ]->x = a;                         
-                        phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ initIndex ]->y = temp;
-                        phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ initIndex ]->type = ADJACENCY;
-                        initIndex = j;
-                        j++;
-                        newChromosome = TRUE;
-                    }
-
-                    if ( c == '\n' )
-                        break;
-                }
-                else { // c should be a digit
-                    buffer[ k ] = c;
+            if ( newChromosome == TRUE ) {
+                temp = -1 * num;
+                a = num;
+                newChromosome = FALSE;
+            }
+            else if ( num == SPLIT ) { 
+                if ( rdatasetPtr->rgenomePtrArray[ i ]->chromosomeType[ h ] == LINEAR_SYM ) {
+                    phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ init ]->x = temp;                         
+                    phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ init ]->y = temp;
+                    phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ init ]->type = TELOMERE;
+                            
+                    phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ k ]->x = a;                         
+                    phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ k ]->y = a;
+                    phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ k ]->type = TELOMERE;
+                    k++; init = k;
                     k++;
+                    newChromosome = TRUE;
+                } 
+                else if ( rdatasetPtr->rgenomePtrArray[ i ]->chromosomeType[ h ] == CIRCULAR_SYM ) {
+                    phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ init ]->x = a;                         
+                    phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ init ]->y = temp;
+                    phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ init ]->type = ADJACENCY;
+                    init = k;
+                    k++;
+                    newChromosome = TRUE;
                 }
-            }//end-while
-            phyloTreePtr->nodesPtrArray[ i ]->numPointsDCJ = j - 1;
-        }//end-for
+                h++;
+            }
+            else { // num is a number
+                b = -1 * num;
+                phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ k ]->x = a;                         
+                phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ k ]->y = b;
+                phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ k ]->type = ADJACENCY;
+                a = num;
+                k++;
+            }
+
+        }
+        phyloTreePtr->nodesPtrArray[ i ]->numPointsDCJ = k - 1;
     }
-    fclose( filePtr );  
 }
 
 int createInitialTreeTopology( TreePtr phyloTreePtr, ParametersPtr paramsPtr )
@@ -482,7 +395,7 @@ int createInitialTreeTopology( TreePtr phyloTreePtr, ParametersPtr paramsPtr )
         freeTree( &temporalTree1, paramsPtr );//--method from tree.c
         freeTree( &temporalTree2, paramsPtr );//--method from tree.c
     }
-    else{
+    else {
         fprintf( stderr, " stderr: incorrect initialization method\n" );
         exit( EXIT_FAILURE );
     }

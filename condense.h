@@ -15,8 +15,8 @@
 #define INCREASING 0
 #define DECREASING 1
 #define SPLIT 0 	/* split between two chrosomomes represents a $ or @ */
-#define LINEAR 0 	/* $ */
-#define CIRCULAR 1 	/* @ */
+#define LINEAR_SYM 0 	/* $ */
+#define CIRCULAR_SYM 1 	/* @ */
 
 struct rawGenome {
 	int *genome;

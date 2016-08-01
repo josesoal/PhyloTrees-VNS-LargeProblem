@@ -27,9 +27,7 @@ void initParameters( ParametersPtr paramsPtr);
 void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr );
 int readNumberGenomes( char *filename );
 void readNumberGenesAndChromosomes( char *filename, RawDatasetPtr rdatasetPtr );
-void readRawGenomes( char *filename, RawDatasetPtr rdatasetPtr );
-
-//int readNumberGenes( ParametersPtr paramsPtr, int numberGenomes );
+void readRawData( char *filename, RawDatasetPtr rdatasetPtr );
 
 int main( int argc, char **argv )
 {
@@ -46,23 +44,12 @@ int main( int argc, char **argv )
     readCommandLine( argc, argv, &params );
     srand( params.seed ); if ( DEBUG ) { printf( "\nseed: %d\n", params.seed ); }
 
-    /* phyloTree.numberLeaves = readNumberGenomes( &params );
-    phyloTree.numberGenes = readNumberGenes( &params, phyloTree.numberLeaves );
-    allocateMemoryForNodes( &phyloTree, &params );//--from tree.c
-    readGenomesFromFile( &phyloTree, &params );//--from tree.c
-    
-    if ( params.distanceType == INVERSION_DIST ) {
-        allocateMemoryForKeys( &phyloTree, &sKeys );//--from condense.c
-        findSetKeysForCondensingLeaves( &phyloTree, &sKeys );//--from condense.c
-        condenseLeafNodes( &phyloTree, &sKeys );//--from condense.c
-	} */
-
     /* read raw data */
     rdataset.numberGenomes = readNumberGenomes( params.testsetName );
     allocateMemoryForRawData( &rdataset );//--from condense.c
     readNumberGenesAndChromosomes( params.testsetName, &rdataset );
     allocateMemoryForRawGenomes( &rdataset );//--from condense.c
-    readRawGenomes( params.testsetName, &rdataset );
+    readRawData( params.testsetName, &rdataset );
 
     /* condense raw data */
     allocateMemoryForKeys( rdataset.numberGenes, &setkeys );//--from condense.c
@@ -73,10 +60,7 @@ int main( int argc, char **argv )
     phyloTree.numberLeaves = rdataset.numberGenomes;
     phyloTree.numberGenes = rdataset.numberGenes; 
     allocateMemoryForNodes( &phyloTree, &params );//--from tree.c
-    //CONTINUE HERE... (create a function that read)
-
-
-    return 0;//delete this
+    readGenomesFromRawData( &phyloTree, &params, &rdataset );//--from tree.c 
 
     score = createInitialTreeTopology( &phyloTree, &params ); //--from tree.c
     score = VNS( &phyloTree, &params );//--from vns.c
@@ -84,24 +68,17 @@ int main( int argc, char **argv )
     /* refine the final tree by using an exhaustive mutation procedures */
     score = exhaustiveSubtreeScramble( &phyloTree, &params, score );
     score = exhaustiveLeafSwap( &phyloTree, &params, score );
-    
-    /*if ( params.distanceType == INVERSION_DIST ) {
-        reverseCondensedNodes( &phyloTree, &setkeys, EACH_NODE );//--from condense.c
-    }*/
 
     gettimeofday( &t_fin, NULL );//---------------------------------take final time--
     double timediff = timeval_diff( &t_fin, &t_ini );//--from measure_time.h
     
     /* show results */
-    if ( SHOW_JUST_SCORE == TRUE )
-        printf( "%d %.2f\n", score, timediff );
-    else
-        showResults( &phyloTree, params.distanceType, score, timediff );//--from vns.c
+    if ( SHOW_JUST_SCORE == TRUE ) printf( "%d %.2f\n", score, timediff );
+    else showResults( &phyloTree, params.distanceType, score, timediff );//--from vns.c
 
     /* free memory */
-    if ( params.distanceType == INVERSION_DIST ) {
-        freeKeys( rdataset.numberGenes, &setkeys );//--from condense.c
-    }
+    freeKeys( rdataset.numberGenes, &setkeys );//--from condense.c
+    freeRawDataset( &rdataset );//--from condense.c
     freeTree( &phyloTree, &params );//--from tree.c
 
 	return 0;
@@ -345,7 +322,7 @@ void readNumberGenesAndChromosomes( char *filename, RawDatasetPtr rdatasetPtr )
 }
 
 /* Read "Raw" genomes, that is, genomes before condensation */
-void readRawGenomes( char *filename, RawDatasetPtr rdatasetPtr )
+void readRawData( char *filename, RawDatasetPtr rdatasetPtr )
 {
     FILE *filePtr;
     int c; /* use int (not char) for the EOF */
@@ -403,7 +380,7 @@ void readRawGenomes( char *filename, RawDatasetPtr rdatasetPtr )
                     if ( c == '@' || c == '$') {
                         rdatasetPtr->rgenomePtrArray[ i ]->genome[ j ] = SPLIT;
                         rdatasetPtr->rgenomePtrArray[ i ]->chromosomeType[ h ] = 
-                                        ( c == '@' ? CIRCULAR : LINEAR );
+                                        ( c == '@' ? CIRCULAR_SYM : LINEAR_SYM );
                         j++;
                         h++;
                     }
