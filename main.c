@@ -98,7 +98,7 @@ void initParameters( ParametersPtr paramsPtr )
     paramsPtr->initMethod       = R_LEAF_1BEST_EDGE;
     paramsPtr->opt              = BLANCHETTE; // (*)
     //opt = KOVAC; //super slow, not good results (worst than BLANCHETTE)
-    //opt = KOVAC_MODIFIED; // is slow, "almost" the same results as BLANCHETTE
+    //opt = GREEDY_CANDIDATES; // is slow, "almost" the same results as BLANCHETTE
 }
 
 void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
@@ -132,7 +132,7 @@ void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
                     }
                     else if ( strcmp( argv[ i + 1 ], "dcj" ) == 0 ) {
                         paramsPtr->distanceType = DCJ_DIST;
-                        paramsPtr->opt = KOVAC_MODIFIED;
+                        paramsPtr->opt = GREEDY_CANDIDATES;
                     }
                     else {
                         fprintf( stderr, " stderr: incorrect distance (-d).\n" );

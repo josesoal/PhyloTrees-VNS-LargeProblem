@@ -35,7 +35,7 @@ enum medianSolvers {COALESTSP, 			/* Approximate TSP solver */
                      CAPRARA_INV_MEDIAN /* Branch & Bound Solver for Inv. Median */
                     };
 enum initTreeMethod {R_LEAF_R_EDGE, R_LEAF_1BEST_EDGE};
-enum optimizer {BLANCHETTE, KOVAC, KOVAC_MODIFIED};
+enum optimizer {BLANCHETTE, KOVAC, GREEDY_CANDIDATES};
 
 struct parameters {
 	unsigned int 			seed;
