@@ -12,8 +12,7 @@
 
 #include "auxiliary.h"
 #include "my_structs.h"
-
-static void calculateInverseGenome( PointDCJPtr *genomeDCJ, int numPointsDCJ, int *inverseGenome ); 
+#include "dcjdist.h"
 
 int DCJdistance( PointDCJPtr *genome1DCJ, PointDCJPtr *genome2DCJ, 
 			int numPoints1DCJ, int numPoints2DCJ, int numberGenes ) 
@@ -132,7 +131,7 @@ calculation: 2 * (-3) - 2 = 4.
 In general, if the gene is (+) we do: 2 * gene - 1
 otherwise, if the gene is (-) we do: 2 * abs(gene) - 2
 */
-static void calculateInverseGenome( PointDCJPtr *genomeDCJ, int numPointsDCJ, int *inverseGenome ) 
+void calculateInverseGenome( PointDCJPtr *genomeDCJ, int numPointsDCJ, int *inverseGenome ) 
 {
 	int i, k;
 
