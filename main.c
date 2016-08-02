@@ -99,7 +99,6 @@ void initParameters( ParametersPtr paramsPtr )
     paramsPtr->opt              = BLANCHETTE; // (*)
     //opt = KOVAC; //super slow, not good results (worst than BLANCHETTE)
     //opt = KOVAC_MODIFIED; // is slow, "almost" the same results as BLANCHETTE
-    //opt = MEDIAN_CANDIDATE; // is slow, the same results as BLANCHETTE (candidates dont improve nothing)
 }
 
 void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )

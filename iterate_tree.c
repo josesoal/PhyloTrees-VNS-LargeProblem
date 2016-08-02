@@ -28,8 +28,6 @@ static int labelOptimizeTree_KovacModified(
 	TreePtr phyloTreePtr, int initialize, ParametersPtr paramsPtr );
 static int labelOptimizeTree_KovacModifiedDCJ( 
 	TreePtr phyloTreePtr, int initialize,  ParametersPtr paramsPtr ); 	
-static int labelOptimizeTree_MedianCandidate( 
-	TreePtr phyloTreePtr, int initialize, ParametersPtr paramsPtr );
 static void initializeTreeUsingDFS( TreePtr phyloTreePtr, 
 		TreeNodePtr nodePtr, ParametersPtr paramsPtr );
 static void initializeTreeWithDescendants( TreePtr phyloTreePtr, 
@@ -40,8 +38,6 @@ static void callSolverAndLabelNode( TreePtr phyloTreePtr, TreeNodePtr nodePtr,
 	TreeNodePtr node1Ptr, TreeNodePtr node2Ptr, TreeNodePtr node3Ptr,
 	struct adj_struct *adjacencyList, enum medianSolvers solver, int circular );
 static void iterateTreeUsingDFS( 
-	TreePtr phyloTreePtr, TreeNodePtr nodePtr, ParametersPtr paramsPtr );
-static void iterateTreeDFS_MedianCandidates( 
 	TreePtr phyloTreePtr, TreeNodePtr nodePtr, ParametersPtr paramsPtr );
 static void generateCandidates( TreePtr phyloTreePtr, TreeNodePtr nodePtr, 
 	CandidatePtr **candidateMatrix, int numCandidates, enum distances distanceType, int circular ); 
@@ -82,10 +78,6 @@ int labelOptimizeTree( TreePtr phyloTreePtr, ParametersPtr paramsPtr )
 		else if ( paramsPtr->opt == KOVAC_MODIFIED ) {
 			initialize = TRUE;
 			score = labelOptimizeTree_KovacModified( phyloTreePtr, initialize, paramsPtr); 
-		}
-		else if ( paramsPtr->opt == MEDIAN_CANDIDATE ) {
-			initialize = TRUE;
-			score = labelOptimizeTree_MedianCandidate( phyloTreePtr, initialize, paramsPtr); 
 		}
 		else {
 			fprintf( stderr, " stderr: incorrect label-optimize method\n" );
@@ -549,61 +541,6 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 
 }
 
-
-/* [for reversal distance] 
-	algorithm for labeling and optimizing the score of a tree by 
-	iteratively applying the median of 3 genomes and 
-	at the same time generating candidates */
-static int labelOptimizeTree_MedianCandidate( 
-	TreePtr phyloTreePtr, int initialize, ParametersPtr paramsPtr )
-{
-	int i, improved, score, newScore;
-	Tree tempTree;
-
-	/* allocate memory for temporary tree */
-	tempTree.numberLeaves = phyloTreePtr->numberLeaves;
-	tempTree.numberGenes = phyloTreePtr->numberGenes;
-	allocateMemoryForNodes( &tempTree, paramsPtr );//--method from tree.c
-
-	if ( initialize == TRUE ) {
-		/* set leaves nodes as extremities, do the contrary for internal nodes */
-		for ( i = 0; i < phyloTreePtr->numberLeaves; i++ ) {
-			phyloTreePtr->nodesPtrArray[ i ]->extremity = TRUE;
-		}
-		for ( i = phyloTreePtr->numberLeaves; i < phyloTreePtr->numberNodes; i++ ) {
-			phyloTreePtr->nodesPtrArray[ i ]->extremity = FALSE;
-		}
-		/* initialize label of internal nodes with genomes */
-		initializeTreeUsingDFS( phyloTreePtr, phyloTreePtr->startingNodePtr, paramsPtr );
-	}
-
-	/* iterate the median over tree whenever the score can be improved */
-	improved = TRUE;
-	score = scoreTree( phyloTreePtr, phyloTreePtr->startingNodePtr->rightDescPtr, paramsPtr );
-	
-	/* improve tree by iterating */
-	while ( improved ) {
-		copyTreeInto( &tempTree, phyloTreePtr, FALSE, paramsPtr );/* make a copy of current tree */
-		iterateTreeDFS_MedianCandidates( phyloTreePtr,
-			phyloTreePtr->startingNodePtr->rightDescPtr, paramsPtr );
-		newScore = scoreTree( phyloTreePtr, phyloTreePtr->startingNodePtr->rightDescPtr, paramsPtr );
-		
-		if ( newScore < score ) {
-			//printf("\t score: %d, new score: %d\n",score,newScore);
-			score = newScore;
-		}
-		else { 
-			improved = FALSE;	
-			copyTreeInto( phyloTreePtr, &tempTree, FALSE, paramsPtr ); /* recover last tree */	
-		}
-	}
-
-	freeTree( &tempTree, paramsPtr );//--method from tree.c
-
-	return score;
-}
-
-
 /* initialize tree using a depth first search (DFS) approach.
  * the input (second parameter) must be the startingNode of the tree */
 static void initializeTreeUsingDFS( TreePtr phyloTreePtr, 
@@ -797,140 +734,6 @@ static void iterateTreeUsingDFS( TreePtr phyloTreePtr, TreeNodePtr nodePtr, Para
     		}
 		}
 			
-		free( adjacencyList );	
-		free( tempGenome );			
-	}
-}
-
-static void iterateTreeDFS_MedianCandidates( 
-	TreePtr phyloTreePtr, TreeNodePtr nodePtr, ParametersPtr paramsPtr )
-{
-	int a, b, c, newA, newB, newC, i, j, k, h, n; 
-	int score, newScore, numCandidates, update, *tempGenome;
-	struct adj_struct *adjacencyList; /* from structs.h */
-	CandidatePtr *candidates;
-
-	n = phyloTreePtr->numberGenes;
-	numCandidates = n + 				// n reversals over a gene
-					( n * (n-1) / 2 );	// C(n,2) reversals
-
-	if ( nodePtr->type == INTERNAL_NODE ) {
-		iterateTreeDFS_MedianCandidates( phyloTreePtr, nodePtr->leftDescPtr, paramsPtr );
-		iterateTreeDFS_MedianCandidates( phyloTreePtr, nodePtr->rightDescPtr, paramsPtr );
-		
-		/* allocate memory */
-		adjacencyList = 
-		malloc ( ( 2*phyloTreePtr->numberGenes + 1 ) * sizeof(struct adj_struct) );
-    	if ( adjacencyList == NULL ) nomemMessage( "adjacencyList" );
-
-    	tempGenome = malloc( phyloTreePtr->numberGenes * sizeof( int ) );
-    	if ( tempGenome == NULL ) nomemMessage( "tempGenome" );
-
-		candidates = malloc( numCandidates * sizeof( CandidatePtr ) );
-		if ( candidates == NULL ) nomemMessage( "candidates" );
-
-		for ( i = 0; i < numCandidates; i++) {
-			candidates[ i ] = malloc( sizeof( Candidate ) );
-			if ( candidates[ i ] == NULL ) nomemMessage( "candidates[i]" );
-
-			candidates[ i ]->genome = malloc( phyloTreePtr->numberGenes * sizeof( int ) );
-			if ( candidates[ i ]->genome == NULL ) nomemMessage( "candidates[ i ]->genome" ); 
-		}
-
-		/* make a temporary copy of the genome of nodePtr */
-		for ( i = 0; i < phyloTreePtr->numberGenes; i++ ) {
-    		tempGenome[ i ] = nodePtr->genome[ i ];
-    	}
-
-    	score = nodePtr->edgeWeight + 
-				nodePtr->leftDescPtr->edgeWeight + 
-				nodePtr->rightDescPtr->edgeWeight;
-
-		/* use the 3 neighbors to nodePtr: ancestor, left desc, and right desc
-		* to create a TSP instance, and call a TSP solver (Median Solver) to label nodePtr */
-		createTspInstance( phyloTreePtr->numberGenes, nodePtr->ancestorPtr->genome, 
-			nodePtr->leftDescPtr->genome, nodePtr->rightDescPtr->genome, adjacencyList );//--method from median_solvers.c
-		callSolverAndLabelNode( phyloTreePtr, nodePtr, nodePtr->ancestorPtr, 
-			nodePtr->leftDescPtr, nodePtr->rightDescPtr, adjacencyList, paramsPtr->solver, paramsPtr->circular );
-
-		a = calculateDistance( nodePtr->genome, 
-			nodePtr->ancestorPtr->genome, phyloTreePtr->numberGenes, paramsPtr ); 
-		b = calculateDistance( nodePtr->genome, 
-			nodePtr->leftDescPtr->genome, phyloTreePtr->numberGenes, paramsPtr ); 
-		c = calculateDistance( nodePtr->genome, 
-			nodePtr->rightDescPtr->genome, phyloTreePtr->numberGenes, paramsPtr );
-
-		newScore = a + b + c;
-
-		if ( newScore < score ) {
-			score = newScore;
-			nodePtr->edgeWeight = a; 
-			nodePtr->leftDescPtr->edgeWeight = b;
-			nodePtr->rightDescPtr->edgeWeight = c;
-		}
-		else { //recover last node
-			for ( i = 0; i < phyloTreePtr->numberGenes; i++ ) {
-    			nodePtr->genome[ i ] = tempGenome[ i ];
-    		}
-		}
-
-		/* generate candidates by modifiying just one gene */
-		for ( i = 0; i < phyloTreePtr->numberGenes; i++ ) {
-			for ( k = 0; k < phyloTreePtr->numberGenes; k++ ) {
-				candidates[ i ]->genome[ k ] = nodePtr->genome[ k ];
-			}
-			applyReversal( candidates[ i ]->genome, i, i );
-		}
-
-		/* generate candidates by choosing two different indices */ 
-		h = phyloTreePtr->numberGenes;
-		for ( i = 0; i < phyloTreePtr->numberGenes - 1; i++ ) {
-			for ( j = i + 1; j < phyloTreePtr->numberGenes; j++ ) {
-				/* copy genome of nodePtr into candidate genome */
-				for ( k = 0; k < phyloTreePtr->numberGenes; k++ ) {
-					candidates[ h ]->genome[ k ] = nodePtr->genome[ k ];
-				}
-
-				applyReversal( candidates[ h ]->genome, i, j );
-				h++;
-			}
-		}
-
-		/* search for best candidate */
-		update = FALSE;
-		for (i = 0; i < numCandidates; i++) {
-			newA = calculateDistance( candidates[ i ]->genome, 
-					nodePtr->ancestorPtr->genome, phyloTreePtr->numberGenes, paramsPtr );
-			newB = calculateDistance( candidates[ i ]->genome, 
-					nodePtr->leftDescPtr->genome, phyloTreePtr->numberGenes, paramsPtr ); 
-			newC = calculateDistance( candidates[ i ]->genome, 
-					nodePtr->rightDescPtr->genome, phyloTreePtr->numberGenes, paramsPtr );
-			newScore = newA + newB + newC;
-
-			if ( newScore < score) {
-				//printf("-->Improved by ... Optimization.\n");
-				score = newScore;
-				a = newA; b = newB; c = newC;
-				update = TRUE;
-				h = i;
-			}
-		}
-
-		if ( update == TRUE ) {
-			for ( k = 0; k < phyloTreePtr->numberGenes; k++ ) {
-				nodePtr->genome[ k ] = candidates[ h ]->genome[ k ];
-			}
-			nodePtr->edgeWeight = a; 
-			nodePtr->leftDescPtr->edgeWeight = b; 
-			nodePtr->rightDescPtr->edgeWeight = c;
-		}
-
-
-		for ( i = 0; i < numCandidates; i++) {
-			free( candidates[ i ]->genome );
-			free( candidates[ i ] );
-		}
-		free( candidates );
 		free( adjacencyList );	
 		free( tempGenome );			
 	}
