@@ -88,20 +88,24 @@ int DCJdistance( PointDCJPtr *genome1DCJ, PointDCJPtr *genome2DCJ,
 					pathCounter++;
 				}
 
-				/* count the cycles and odd paths if found */
+				/* [count the cycles and odd paths if found] */
+				/* if we start in a TELOMERE and end in a TELOMERE */
 				if ( startType == TELOMERE && endType == TELOMERE ) {
+					/* if pathCounter is not even, count it as a oddpath */
 					if ( pathCounter % 2 != 0 ) {
 						oddPaths++;
 					}
 					break;	
 				}
-
+				/* if we start in an ADJACENCY and end in the 
+				   same ADJACENCY, count a cycle */
 				if ( startType == ADJACENCY && 
 						endType == ADJACENCY && startPoint == endPoint ) {
 					cycles++;
 					break;	
 				}
-
+				/* if we start in ADJACENCY and end in a TELOMERE go back to the 1st adjacency 
+					and search by the 2nd (y) component until finding a TELOMERE */
 				if ( startType == ADJACENCY && endType == TELOMERE ) {
 					startType 		= TELOMERE;
 					g1coord 		= genome1DCJ[ i ]->y;
