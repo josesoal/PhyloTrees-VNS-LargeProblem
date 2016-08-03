@@ -79,20 +79,33 @@ void allocateMemoryForNodes( TreePtr phyloTreePtr, ParametersPtr paramsPtr )
     /* allocate memory for genomes */
     if ( paramsPtr->distanceType == INVERSION_DIST ) {
         for( i = 0; i < phyloTreePtr->numberNodes; i++ ) {
-            phyloTreePtr->nodesPtrArray[ i ]->genome = calloc( phyloTreePtr->numberGenes, sizeof( int ) );
-            if ( phyloTreePtr->nodesPtrArray[ i ]->genome == NULL ) nomemMessage( "genome" );
+            phyloTreePtr->nodesPtrArray[ i ]->genome = 
+                calloc( phyloTreePtr->numberGenes, sizeof( int ) );
+            if ( phyloTreePtr->nodesPtrArray[ i ]->genome == NULL ) 
+                nomemMessage( "genome" );
         }
     }
     else if ( paramsPtr->distanceType == DCJ_DIST ) {
         for( i = 0; i < phyloTreePtr->numberNodes; i++ ) {
             phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ = 
-                        malloc( 2 * phyloTreePtr->numberGenes * sizeof( PointDCJPtr ) );
-            if ( phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ == NULL ) nomemMessage( "genomeDCJ" );
+                malloc( 2 * phyloTreePtr->numberGenes * sizeof( PointDCJPtr ) );
+            if ( phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ == NULL ) 
+                nomemMessage( "genomeDCJ" );
             
             for ( j = 0; j < 2 * phyloTreePtr->numberGenes; j++ ) {
-                phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ j ] = malloc( sizeof( PointDCJ ) );
-                if ( phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ j ] == NULL ) nomemMessage( "genomeDCJ[ j ]" ); 
+                phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ j ] = 
+                    malloc( sizeof( PointDCJ ) );
+                if ( phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ j ] == NULL ) 
+                    nomemMessage( "genomeDCJ[ j ]" ); 
             }
+
+            /* this is defined in funct. readGenomesDCJ(...) */
+            // phyloTreePtr->nodesPtrArray[ i ]->numPointsDCJ;
+
+            phyloTreePtr->nodesPtrArray[ i ]->inverseDCJ = 
+                malloc( 2 * phyloTreePtr->numberGenes * sizeof( int ) );
+            if ( phyloTreePtr->nodesPtrArray[ i ]->inverseDCJ == NULL )
+                nomemMessage( "inverseDCJ" ); 
         }
     }
     else {
@@ -116,6 +129,7 @@ void freeTree( TreePtr phyloTreePtr, ParametersPtr paramsPtr )
                 free( phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ j ] );
             }   
             free( phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ );
+            free( phyloTreePtr->nodesPtrArray[ i ]->inverseDCJ );
         }
     }
     else {
@@ -180,13 +194,19 @@ void copyTreeInto( TreePtr phyloTree1Ptr,
 
             phyloTree1Ptr->nodesPtrArray[ i ]->numPointsDCJ = 
                             phyloTree2Ptr->nodesPtrArray[ i ]->numPointsDCJ;
+
             for ( j = 0; j < phyloTree1Ptr->nodesPtrArray[ i ]->numPointsDCJ; j++ ) {
                 phyloTree1Ptr->nodesPtrArray[ i ]->genomeDCJ[ j ]->x = 
-                                phyloTree2Ptr->nodesPtrArray[ i ]->genomeDCJ[ j ]->x; 
+                    phyloTree2Ptr->nodesPtrArray[ i ]->genomeDCJ[ j ]->x; 
                 phyloTree1Ptr->nodesPtrArray[ i ]->genomeDCJ[ j ]->y = 
-                                phyloTree2Ptr->nodesPtrArray[ i ]->genomeDCJ[ j ]->y;
+                    phyloTree2Ptr->nodesPtrArray[ i ]->genomeDCJ[ j ]->y;
                 phyloTree1Ptr->nodesPtrArray[ i ]->genomeDCJ[ j ]->type = 
-                                phyloTree2Ptr->nodesPtrArray[ i ]->genomeDCJ[ j ]->type; 
+                    phyloTree2Ptr->nodesPtrArray[ i ]->genomeDCJ[ j ]->type; 
+            }
+
+            for ( j = 0; j < 2 * phyloTree1Ptr->numberGenes; j++ ) {
+                phyloTree1Ptr->nodesPtrArray[ i ]->inverseDCJ[ j ] = 
+                    phyloTree2Ptr->nodesPtrArray[ i ]->inverseDCJ[ j ]; 
             }
         }
     }
@@ -350,6 +370,9 @@ static void readGenomesDCJ( TreePtr phyloTreePtr, RawDatasetPtr rdatasetPtr )
 
         }
         phyloTreePtr->nodesPtrArray[ i ]->numPointsDCJ = k - 1;
+
+        // Generate Inverse (CODEHERE) ... 
+        
     }
 }
 

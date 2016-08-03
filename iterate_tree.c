@@ -687,6 +687,8 @@ static void initializeTreeWithDescendants( TreePtr phyloTreePtr,
 				nodePtr->genomeDCJ[i]->y = nodePtr->leftDescPtr->genomeDCJ[i]->y;
 				nodePtr->genomeDCJ[i]->type = nodePtr->leftDescPtr->genomeDCJ[i]->type;
 			}
+
+			//Copy Inverse (CODEHERE)
 		}
 		else { // orientation == GO_RIGHT
 			/* copy right descendant */
@@ -696,6 +698,8 @@ static void initializeTreeWithDescendants( TreePtr phyloTreePtr,
 				nodePtr->genomeDCJ[i]->y = nodePtr->rightDescPtr->genomeDCJ[i]->y;
 				nodePtr->genomeDCJ[i]->type = nodePtr->rightDescPtr->genomeDCJ[i]->type;
 			}
+
+			//Copy Inverse (CODEHERE)
 		}
 
 	}
@@ -890,6 +894,8 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 			nodePtr->edgeWeight = a; 
 			nodePtr->leftDescPtr->edgeWeight = b; 
 			nodePtr->rightDescPtr->edgeWeight = c;
+
+			// Generate Inverse (CODEHERE) ...
 		}
 
 		/* free memory */
@@ -1054,7 +1060,10 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 		numCandidates = h;
 		/* search for best candidate */
 		update = FALSE;
-		for (i = 0; i < numCandidates; i++) { 
+		for (i = 0; i < numCandidates; i++) {
+			// Generate Inverse of candidate, and send as parameter. 
+			// Also, send inverse of second genome as parameter (CODEHERE) ...
+
 			newA = DCJdistance( candidates[ i ]->genomeDCJ, nodePtr->ancestorPtr->genomeDCJ, 
 								candidates[ i ]->numPointsDCJ, nodePtr->ancestorPtr->numPointsDCJ,
 								phyloTreePtr->numberGenes );
@@ -1086,6 +1095,8 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 			nodePtr->edgeWeight = a; 
 			nodePtr->leftDescPtr->edgeWeight = b; 
 			nodePtr->rightDescPtr->edgeWeight = c;
+
+			// Generate Inverse (or Copy) (CODEHERE) ...
 		}
 
 		/* free memory */

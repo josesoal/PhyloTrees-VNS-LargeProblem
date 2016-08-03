@@ -78,6 +78,7 @@ struct treeNode{
 	int 				type; 			/* LEAF_NODE or INTERNAL_NODE */
 	int 				*genome;		/* genome formed by integers */
 	PointDCJPtr			*genomeDCJ;		/* genome formed by pointers to points (adjaceny ot telomere)*/
+	int 				*inverseDCJ;	/* inverse of the genomeDCJ */
 	int 				numPointsDCJ; 	/* number of elements of genomeDCJ */
 	int 				edgeWeight; 	/* egde between current node and ancestor*/
 	struct treeNode 	*ancestorPtr;
