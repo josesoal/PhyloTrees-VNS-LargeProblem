@@ -11,7 +11,8 @@
 #define DCJ_DIST_H_
 
 int DCJdistance( PointDCJPtr *genome1DCJ, PointDCJPtr *genome2DCJ, 
-			int numPoints1DCJ, int numPoints2DCJ, int numberGenes );
+				int *inverseGenome1, int *inverseGenome2, 
+				int numPoints1DCJ, int numPoints2DCJ, int numberGenes );
 void calculateInverseGenome( PointDCJPtr *genomeDCJ, int numPointsDCJ, int *inverseGenome );
 void applyDCJ( PointDCJPtr *genomeDCJ, int *numPointsDCJ, int i, int j, int firstForm );
 

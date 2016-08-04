@@ -15,25 +15,18 @@
 #include "dcjdist.h"
 
 int DCJdistance( PointDCJPtr *genome1DCJ, PointDCJPtr *genome2DCJ, 
-			int numPoints1DCJ, int numPoints2DCJ, int numberGenes ) 
+				int *inverseGenome1, int *inverseGenome2, 
+				int numPoints1DCJ, int numPoints2DCJ, int numberGenes ) 
 {
 	int i, k, pos, startType, endType, pathCounter, searchOnGenome1;
 	int g1coord, g2coord; /* genome 1 coordinate is x or y */
 	int distance, cycles, oddPaths;
-	int *inverseGenome1, *inverseGenome2;
 	int *visited;
 	PointDCJPtr startPoint, endPoint;
 
 	/* allocate memory */
-	inverseGenome1 = malloc( 2 * numberGenes * sizeof( int ) );
-	if ( inverseGenome1 == NULL ) { nomemMessage( "inverseGenome1" ); }
-	inverseGenome2 = malloc( 2 * numberGenes * sizeof( int ) );
-	if ( inverseGenome2 == NULL ) { nomemMessage( "inverseGenome2" ); }
 	visited = malloc( numPoints1DCJ * sizeof( int ) );
 	if ( visited == NULL ) { nomemMessage( "visited" ); }
-
-	calculateInverseGenome( genome1DCJ, numPoints1DCJ, inverseGenome1 ); 
-	calculateInverseGenome( genome2DCJ, numPoints2DCJ, inverseGenome2 );
 
 	for ( i = 0; i < numPoints1DCJ; i++ ) {
 		visited[ i ] = FALSE;
@@ -118,8 +111,6 @@ int DCJdistance( PointDCJPtr *genome1DCJ, PointDCJPtr *genome2DCJ,
 	distance = numberGenes - ( cycles + oddPaths / 2 );
 
 	/* free memory */
-	free( inverseGenome1 );
-	free( inverseGenome2 );
 	free( visited );
 
 	return distance;

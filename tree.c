@@ -323,7 +323,7 @@ static void readGenomesDCJ( TreePtr phyloTreePtr, RawDatasetPtr rdatasetPtr )
         init = 0; k = 1; h = 0;
         temp = 0; a = 0; b = 0;
         newChromosome = TRUE;
-
+        /* convert raw genome into dcj format */
         for ( j = 0; j < rdatasetPtr->rgenomePtrArray[ i ]->numberElements; j++ ) {
             /* NOTE: how to encode a gene either positive or negative
             gen a: tail (-a), head (+a)
@@ -371,9 +371,13 @@ static void readGenomesDCJ( TreePtr phyloTreePtr, RawDatasetPtr rdatasetPtr )
         }
         phyloTreePtr->nodesPtrArray[ i ]->numPointsDCJ = k - 1;
 
-        // Generate Inverse (CODEHERE) ... 
+        /* generate inverse of dcj genome */
+        calculateInverseGenome( 
+            phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ, 
+            phyloTreePtr->nodesPtrArray[ i ]->numPointsDCJ, 
+            phyloTreePtr->nodesPtrArray[ i ]->inverseDCJ );
         
-    }
+    }//end-for
 }
 
 int createInitialTreeTopology( TreePtr phyloTreePtr, ParametersPtr paramsPtr )
@@ -464,7 +468,8 @@ static void createTreeRandomLeaf_FirstBestEdge( TreePtr phyloTreePtr, Parameters
 	/* select the 2nd leaf that makes the first best score*/
 	selectAvaliableLeaf( phyloTreePtr, &node2Ptr );
     if ( paramsPtr->distanceType == DCJ_DIST ) {
-        score = DCJdistance( node1Ptr->genomeDCJ, node2Ptr->genomeDCJ, 
+        score = DCJdistance( node1Ptr->genomeDCJ, node2Ptr->genomeDCJ,
+                            node1Ptr->inverseDCJ, node2Ptr->inverseDCJ,     
                             node1Ptr->numPointsDCJ, node2Ptr->numPointsDCJ, 
                             phyloTreePtr->numberGenes );//--from dcjdist.c
     }
@@ -479,7 +484,8 @@ static void createTreeRandomLeaf_FirstBestEdge( TreePtr phyloTreePtr, Parameters
 			phyloTreePtr->avaliableLeavesNodes--;
 
             if ( paramsPtr->distanceType == DCJ_DIST ) {
-                newScore = DCJdistance( node1Ptr->genomeDCJ, nodeTmpPtr->genomeDCJ, 
+                newScore = DCJdistance( node1Ptr->genomeDCJ, nodeTmpPtr->genomeDCJ,
+                            node1Ptr->inverseDCJ, nodeTmpPtr->inverseDCJ, 
                             node1Ptr->numPointsDCJ, nodeTmpPtr->numPointsDCJ, 
                             phyloTreePtr->numberGenes );//--from dcjdist.c
             }

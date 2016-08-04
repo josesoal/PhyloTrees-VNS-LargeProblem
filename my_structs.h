@@ -66,6 +66,7 @@ struct candidate {
 	//unsigned char *genome;//unsigned char is 1 byte (0 to 255)
 	int 				*genome;
 	PointDCJPtr			*genomeDCJ;
+	int 				*inverseDCJ;
 	int 				numPointsDCJ; 
 };
 typedef struct candidate Candidate;

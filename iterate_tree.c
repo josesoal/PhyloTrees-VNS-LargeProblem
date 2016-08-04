@@ -688,7 +688,10 @@ static void initializeTreeWithDescendants( TreePtr phyloTreePtr,
 				nodePtr->genomeDCJ[i]->type = nodePtr->leftDescPtr->genomeDCJ[i]->type;
 			}
 
-			//Copy Inverse (CODEHERE)
+			/* copy inverse */
+			for ( i = 0; i < 2 * phyloTreePtr->numberGenes; i++ ) {
+				nodePtr->inverseDCJ[ i ] = nodePtr->leftDescPtr->inverseDCJ[ i ];
+			}
 		}
 		else { // orientation == GO_RIGHT
 			/* copy right descendant */
@@ -699,10 +702,47 @@ static void initializeTreeWithDescendants( TreePtr phyloTreePtr,
 				nodePtr->genomeDCJ[i]->type = nodePtr->rightDescPtr->genomeDCJ[i]->type;
 			}
 
-			//Copy Inverse (CODEHERE)
+			/* copy inverse */
+			for ( i = 0; i < 2 * phyloTreePtr->numberGenes; i++ ) {
+				nodePtr->inverseDCJ[ i ] = nodePtr->rightDescPtr->inverseDCJ[ i ];
+			}
 		}
 
 	}
+}
+
+static void allocateMemForCandidate( TreePtr phyloTreePtr, CandidatePtr candPtr )
+{
+	int j;
+
+	candPtr = malloc( sizeof( Candidate ) );
+	if ( candPtr == NULL ) nomemMessage( "candPtr" );
+
+	candPtr->genomeDCJ = 
+		malloc( 2 * phyloTreePtr->numberGenes * sizeof( PointDCJPtr ) );
+	if ( candPtr->genomeDCJ == NULL ) 
+		nomemMessage( "candPtr->genomeDCJ" ); 
+
+	for ( j = 0; j < 2 * phyloTreePtr->numberGenes; j++ ) {
+		candPtr->genomeDCJ[ j ] = malloc( sizeof( PointDCJ ) );
+		if ( candPtr->genomeDCJ[ j ] == NULL )
+			nomemMessage( "candPtr->genomeDCJ[j]" );
+	}
+
+	candPtr->inverseDCJ = malloc( 2 * phyloTreePtr->numberGenes * sizeof( int ) );
+	if ( candPtr->inverseDCJ == NULL ) nomemMessage( "candPtr->inverseDCJ" );
+}
+
+static void freeCandidate( TreePtr phyloTreePtr, CandidatePtr candPtr )
+{
+	int j;
+
+	free( candPtr->inverseDCJ );
+	for ( j = 0; j < 2 * phyloTreePtr->numberGenes; j++ ) {
+		free( candPtr->genomeDCJ[ j ] );
+	}
+	free( candPtr->genomeDCJ );
+	free( candPtr );
 }
 
 /* NOTE: in the first call of this procedure, the second argument 
@@ -713,7 +753,6 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 	int a, b, c, newA, newB, newC, i, j, k, h, numA, numT;
 	int score, newScore, maxElements, numCandidates, update;
 	CandidatePtr *candidates;
-	int *invGenome1, *invGenome2, *invGenome3;
 	int x, y, xpos, ypos;
 
 	if ( nodePtr->type == INTERNAL_NODE ) {
@@ -738,35 +777,10 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 						2 * numA * numT +				// for case (2)
 						numT / 2;						// for case (3)
 
-		/* allocate memory for candidates */
+		/* allocate memory for array of pointers to candidate */
 		candidates = malloc( maxElements * sizeof( CandidatePtr ) );
 		if ( candidates == NULL ) nomemMessage("candidates");
-
-		for ( i = 0; i < maxElements; i++ ) {
-			candidates[ i ] = malloc( sizeof( Candidate ) );
-			if ( candidates[ i ] == NULL ) nomemMessage("candidates[i]");
-
-			candidates[ i ]->genomeDCJ = malloc( 2 * phyloTreePtr->numberGenes * sizeof( PointDCJPtr ) );
-			if ( candidates[ i ]->genomeDCJ == NULL ) nomemMessage("candidates[ i ]->genomeDCJ"); 
-
-			for( j = 0; j < 2 * phyloTreePtr->numberGenes; j++ ) {
-				candidates[ i ]->genomeDCJ[ j ] = malloc( sizeof( PointDCJ ) );
-				if ( candidates[ i ]->genomeDCJ[ j ] == NULL ) { nomemMessage("candidates[ i ]->genomeDCJ[ j ]");}
-			}
-		}
-
-		/* allocate memory and calculate inverse genomes of ancestor, left desc., and right desc. */
-		invGenome1 = malloc( 2 * phyloTreePtr->numberGenes * sizeof( int ) );
-		if ( invGenome1 == NULL ) { nomemMessage( "invGenome1" ); }
-		invGenome2 = malloc( 2 * phyloTreePtr->numberGenes * sizeof( int ) );
-		if ( invGenome2 == NULL ) { nomemMessage( "invGenome2" ); }
-		invGenome3 = malloc( 2 * phyloTreePtr->numberGenes * sizeof( int ) );
-		if ( invGenome3 == NULL ) { nomemMessage( "invGenome3" ); }
-
-		calculateInverseGenome( nodePtr->ancestorPtr->genomeDCJ, nodePtr->ancestorPtr->numPointsDCJ, invGenome1 );
-		calculateInverseGenome( nodePtr->leftDescPtr->genomeDCJ, nodePtr->leftDescPtr->numPointsDCJ, invGenome2 );
-		calculateInverseGenome( nodePtr->rightDescPtr->genomeDCJ, nodePtr->rightDescPtr->numPointsDCJ, invGenome3 );
-
+		
 		/* generate candidates for inverse of case (3) */
 		h = 0;
 		for ( i = 0; i < nodePtr->numPointsDCJ; i++ ) {
@@ -779,11 +793,13 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 
 				/* if adjacency (i->x, i->y) is also a adjacency in ancestor, 
 					left desc., or right desc. do nothing */
-				if ( invGenome1[ xpos ] == invGenome1[ ypos ] && 
-					invGenome2[ xpos ] == invGenome2[ ypos ] && 
-					invGenome3[ xpos ] == invGenome3[ ypos ] ) {
+				if ( nodePtr->ancestorPtr->inverseDCJ[ xpos ] == nodePtr->ancestorPtr->inverseDCJ[ ypos ] && 
+					nodePtr->leftDescPtr->inverseDCJ[ xpos ] == nodePtr->leftDescPtr->inverseDCJ[ ypos ] && 
+					nodePtr->rightDescPtr->inverseDCJ[ xpos ] == nodePtr->rightDescPtr->inverseDCJ[ ypos ] ) {
 					continue;
 				}
+
+				allocateMemForCandidate( phyloTreePtr, candidates[ h ] );
 
 				/* copy genomeDCJ */
 				candidates[ h ]->numPointsDCJ = nodePtr->numPointsDCJ;
@@ -794,6 +810,11 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 				}
 				/* apply DCJ on copy and generate candidate */
 				applyDCJ( candidates[ h ]->genomeDCJ, &candidates[ h ]->numPointsDCJ, i, i, TRUE );//--from dcjdist.c
+				
+				calculateInverseGenome( candidates[ h ]->genomeDCJ, 
+										candidates[ h ]->numPointsDCJ, 
+										candidates[ h ]->inverseDCJ );
+
 				h++;
 			}
 		}
@@ -809,9 +830,9 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 
 				/* if adjacency (i->x, i->y) is also a adjacency in ancestor, 
 					left desc., or right desc. do nothing */
-				if ( invGenome1[ xpos ] == invGenome1[ ypos ] && 
-					invGenome2[ xpos ] == invGenome2[ ypos ] && 
-					invGenome3[ xpos ] == invGenome3[ ypos ] ) {
+				if ( nodePtr->ancestorPtr->inverseDCJ[ xpos ] == nodePtr->ancestorPtr->inverseDCJ[ ypos ] && 
+					nodePtr->leftDescPtr->inverseDCJ[ xpos ] == nodePtr->leftDescPtr->inverseDCJ[ ypos ] && 
+					nodePtr->rightDescPtr->inverseDCJ[ xpos ] == nodePtr->rightDescPtr->inverseDCJ[ ypos ] ) {
 					continue;
 				}
 
@@ -823,11 +844,13 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 
 				/* if adjacency (j->x,j->y) is also a adjacency in ancestor, 
 					left desc., or right desc. do nothing */
-				if ( invGenome1[ xpos ] == invGenome1[ ypos ] && 
-					invGenome2[ xpos ] == invGenome2[ ypos ] && 
-					invGenome3[ xpos ] == invGenome3[ ypos ] ) {
+				if ( nodePtr->ancestorPtr->inverseDCJ[ xpos ] == nodePtr->ancestorPtr->inverseDCJ[ ypos ] && 
+					nodePtr->leftDescPtr->inverseDCJ[ xpos ] == nodePtr->leftDescPtr->inverseDCJ[ ypos ] && 
+					nodePtr->rightDescPtr->inverseDCJ[ xpos ] == nodePtr->rightDescPtr->inverseDCJ[ ypos ] ) {
 					continue;
 				}
+
+				allocateMemForCandidate( phyloTreePtr, candidates[ h ] );
 
 				/* copy genomeDCJ */
 				candidates[ h ]->numPointsDCJ = nodePtr->numPointsDCJ;
@@ -839,11 +862,18 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 
 				/* apply DCJ on copy and generate candidate */
 				applyDCJ( candidates[ h ]->genomeDCJ, &candidates[ h ]->numPointsDCJ, i, j, TRUE );//--from dcjdist.c
+				
+				calculateInverseGenome( candidates[ h ]->genomeDCJ, 
+										candidates[ h ]->numPointsDCJ, 
+										candidates[ h ]->inverseDCJ );
+
 				h++;
 
 				/* do the second FORM in case one of the point is a adjacency */
 				if ( nodePtr->genomeDCJ[ i ]->type == ADJACENCY || 
 						nodePtr->genomeDCJ[ j ]->type == ADJACENCY ) {
+
+					allocateMemForCandidate( phyloTreePtr, candidates[ h ] );
 
 					/* copy genomeDCJ */
 					candidates[ h ]->numPointsDCJ = nodePtr->numPointsDCJ;
@@ -854,22 +884,30 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 					}
 					/* apply DCJ on copy and generate candidate */
 					applyDCJ( candidates[ h ]->genomeDCJ, &candidates[ h ]->numPointsDCJ, i, j, FALSE );//--from dcjdist.c
+					
+					calculateInverseGenome( candidates[ h ]->genomeDCJ, 
+										candidates[ h ]->numPointsDCJ, 
+										candidates[ h ]->inverseDCJ );
+
 					h++;
 				}
 			}
 		}
-
 		numCandidates = h;
+
 		/* search for best candidate */
 		update = FALSE;
 		for (i = 0; i < numCandidates; i++) {
-			newA = DCJdistance( candidates[ i ]->genomeDCJ, nodePtr->ancestorPtr->genomeDCJ, 
+			newA = DCJdistance( candidates[ i ]->genomeDCJ, nodePtr->ancestorPtr->genomeDCJ,
+								candidates[ i ]->inverseDCJ, nodePtr->ancestorPtr->inverseDCJ,  
 								candidates[ i ]->numPointsDCJ, nodePtr->ancestorPtr->numPointsDCJ,
 								phyloTreePtr->numberGenes );
-			newB = DCJdistance( candidates[ i ]->genomeDCJ, nodePtr->leftDescPtr->genomeDCJ, 
+			newB = DCJdistance( candidates[ i ]->genomeDCJ, nodePtr->leftDescPtr->genomeDCJ,
+								candidates[ i ]->inverseDCJ, nodePtr->leftDescPtr->inverseDCJ, 
 								candidates[ i ]->numPointsDCJ, nodePtr->leftDescPtr->numPointsDCJ,
 								phyloTreePtr->numberGenes );
-			newC = DCJdistance( candidates[ i ]->genomeDCJ, nodePtr->rightDescPtr->genomeDCJ, 
+			newC = DCJdistance( candidates[ i ]->genomeDCJ, nodePtr->rightDescPtr->genomeDCJ,
+								candidates[ i ]->inverseDCJ, nodePtr->rightDescPtr->inverseDCJ, 
 								candidates[ i ]->numPointsDCJ, nodePtr->rightDescPtr->numPointsDCJ,
 								phyloTreePtr->numberGenes );
 			newScore = newA + newB + newC;
@@ -895,22 +933,18 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 			nodePtr->leftDescPtr->edgeWeight = b; 
 			nodePtr->rightDescPtr->edgeWeight = c;
 
-			// Generate Inverse (CODEHERE) ...
+			/* copy inverse of candidate */
+			for ( j = 0; j < 2 * phyloTreePtr->numberGenes; j++ ) {
+				nodePtr->inverseDCJ[ j ] = candidates[ h ]->inverseDCJ[ j ];
+			}
 		}
 
 		/* free memory */
-		for ( i = 0; i < maxElements; i++) {
-			for( j = 0; j < 2 * phyloTreePtr->numberGenes; j++ ) {
-				free( candidates[ i ]->genomeDCJ[ j ] ); 
-			}
-			free( candidates[ i ]->genomeDCJ );
+		for ( i = 0; i < numCandidates; i++) {
+			freeCandidate( phyloTreePtr, candidates[ i ]);
 			free( candidates[ i ] );
 		}
 		free( candidates );
-
-		free( invGenome1 );
-		free( invGenome2 );
-		free( invGenome3 );
 	} // end-if
 }
 
@@ -924,7 +958,6 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 	int a, b, c, newA, newB, newC, i, j, k, h, numA, numT;
 	int score, newScore, maxElements, numCandidates, update;
 	CandidatePtr *candidates;
-	int *invGenome1, *invGenome2, *invGenome3;
 	int x, y, xpos, ypos;
 
 	if ( nodePtr->type == INTERNAL_NODE ) {
@@ -949,34 +982,9 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 						numA * numT +				// for case (2)
 						numT / 2;					// for case (3)
 
-		/* allocate memory for candidates */
+		/* allocate memory for array of pointers to candidate */
 		candidates = malloc( maxElements * sizeof( CandidatePtr ) );
 		if ( candidates == NULL ) nomemMessage("candidates");
-
-		for ( i = 0; i < maxElements; i++ ) {
-			candidates[ i ] = malloc( sizeof( Candidate ) );
-			if ( candidates[ i ] == NULL ) nomemMessage("candidates[i]");
-
-			candidates[ i ]->genomeDCJ = malloc( 2 * phyloTreePtr->numberGenes * sizeof( PointDCJPtr ) );
-			if ( candidates[ i ]->genomeDCJ == NULL ) nomemMessage("candidates[ i ]->genomeDCJ"); 
-
-			for( j = 0; j < 2 * phyloTreePtr->numberGenes; j++ ) {
-				candidates[ i ]->genomeDCJ[ j ] = malloc( sizeof( PointDCJ ) );
-				if ( candidates[ i ]->genomeDCJ[ j ] == NULL ) { nomemMessage("candidates[ i ]->genomeDCJ[ j ]");}
-			}
-		}
-
-		/* allocate memory and calculate inverse genomes of ancestor, left desc., and right desc. */
-		invGenome1 = malloc( 2 * phyloTreePtr->numberGenes * sizeof( int ) );
-		if ( invGenome1 == NULL ) { nomemMessage( "invGenome1" ); }
-		invGenome2 = malloc( 2 * phyloTreePtr->numberGenes * sizeof( int ) );
-		if ( invGenome2 == NULL ) { nomemMessage( "invGenome2" ); }
-		invGenome3 = malloc( 2 * phyloTreePtr->numberGenes * sizeof( int ) );
-		if ( invGenome3 == NULL ) { nomemMessage( "invGenome3" ); }
-
-		calculateInverseGenome( nodePtr->ancestorPtr->genomeDCJ, nodePtr->ancestorPtr->numPointsDCJ, invGenome1 );
-		calculateInverseGenome( nodePtr->leftDescPtr->genomeDCJ, nodePtr->leftDescPtr->numPointsDCJ, invGenome2 );
-		calculateInverseGenome( nodePtr->rightDescPtr->genomeDCJ, nodePtr->rightDescPtr->numPointsDCJ, invGenome3 );
 
 		/* generate candidates for inverse of case (3) */
 		h = 0;
@@ -990,11 +998,13 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 
 				/* if adjacency (i->x, i->y) is also a adjacency in ancestor, 
 					left desc., or right desc. do nothing */
-				if ( invGenome1[ xpos ] == invGenome1[ ypos ] && 
-					invGenome2[ xpos ] == invGenome2[ ypos ] && 
-					invGenome3[ xpos ] == invGenome3[ ypos ] ) {
+				if ( nodePtr->ancestorPtr->inverseDCJ[ xpos ] == nodePtr->ancestorPtr->inverseDCJ[ ypos ] && 
+					nodePtr->leftDescPtr->inverseDCJ[ xpos ] == nodePtr->leftDescPtr->inverseDCJ[ ypos ] && 
+					nodePtr->rightDescPtr->inverseDCJ[ xpos ] == nodePtr->rightDescPtr->inverseDCJ[ ypos ] ) {
 					continue;
 				}
+
+				allocateMemForCandidate( phyloTreePtr, candidates[ h ] );
 
 				/* copy genomeDCJ */
 				candidates[ h ]->numPointsDCJ = nodePtr->numPointsDCJ;
@@ -1005,6 +1015,11 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 				}
 				/* apply DCJ on copy and generate candidate */
 				applyDCJ( candidates[ h ]->genomeDCJ, &candidates[ h ]->numPointsDCJ, i, i, TRUE );//--from dcjdist.c
+				
+				calculateInverseGenome( candidates[ h ]->genomeDCJ, 
+										candidates[ h ]->numPointsDCJ, 
+										candidates[ h ]->inverseDCJ );
+
 				h++;				
 			}
 		}
@@ -1020,9 +1035,9 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 
 				/* if adjacency (i->x, i->y) is also a adjacency in ancestor, 
 					left desc., or right desc. do nothing */
-				if ( invGenome1[ xpos ] == invGenome1[ ypos ] && 
-					invGenome2[ xpos ] == invGenome2[ ypos ] && 
-					invGenome3[ xpos ] == invGenome3[ ypos ] ) {
+				if ( nodePtr->ancestorPtr->inverseDCJ[ xpos ] == nodePtr->ancestorPtr->inverseDCJ[ ypos ] && 
+					nodePtr->leftDescPtr->inverseDCJ[ xpos ] == nodePtr->leftDescPtr->inverseDCJ[ ypos ] && 
+					nodePtr->rightDescPtr->inverseDCJ[ xpos ] == nodePtr->rightDescPtr->inverseDCJ[ ypos ] ) {
 					continue;
 				}
 
@@ -1034,11 +1049,13 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 
 				/* if adjacency (j->x,j->y) is also a adjacency in ancestor, 
 					left desc., or right desc. do nothing */
-				if ( invGenome1[ xpos ] == invGenome1[ ypos ] && 
-					invGenome2[ xpos ] == invGenome2[ ypos ] && 
-					invGenome3[ xpos ] == invGenome3[ ypos ] ) {
+				if ( nodePtr->ancestorPtr->inverseDCJ[ xpos ] == nodePtr->ancestorPtr->inverseDCJ[ ypos ] && 
+					nodePtr->leftDescPtr->inverseDCJ[ xpos ] == nodePtr->leftDescPtr->inverseDCJ[ ypos ] && 
+					nodePtr->rightDescPtr->inverseDCJ[ xpos ] == nodePtr->rightDescPtr->inverseDCJ[ ypos ] ) {
 					continue;
 				}
+
+				allocateMemForCandidate( phyloTreePtr, candidates[ h ] );
 
 				/* copy genomeDCJ */
 				candidates[ h ]->numPointsDCJ = nodePtr->numPointsDCJ;
@@ -1050,6 +1067,11 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 
 				/* apply DCJ on copy and generate candidate */
 				applyDCJ( candidates[ h ]->genomeDCJ, &candidates[ h ]->numPointsDCJ, i, j, TRUE );//--from dcjdist.c
+				
+				calculateInverseGenome( candidates[ h ]->genomeDCJ, 
+										candidates[ h ]->numPointsDCJ, 
+										candidates[ h ]->inverseDCJ );
+
 				h++;
 
 				/* if one of the points is an adjacency DO NOT do the second form,
@@ -1061,16 +1083,16 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 		/* search for best candidate */
 		update = FALSE;
 		for (i = 0; i < numCandidates; i++) {
-			// Generate Inverse of candidate, and send as parameter. 
-			// Also, send inverse of second genome as parameter (CODEHERE) ...
-
-			newA = DCJdistance( candidates[ i ]->genomeDCJ, nodePtr->ancestorPtr->genomeDCJ, 
+			newA = DCJdistance( candidates[ i ]->genomeDCJ, nodePtr->ancestorPtr->genomeDCJ,
+								candidates[ i ]->inverseDCJ, nodePtr->ancestorPtr->inverseDCJ,  
 								candidates[ i ]->numPointsDCJ, nodePtr->ancestorPtr->numPointsDCJ,
 								phyloTreePtr->numberGenes );
-			newB = DCJdistance( candidates[ i ]->genomeDCJ, nodePtr->leftDescPtr->genomeDCJ, 
+			newB = DCJdistance( candidates[ i ]->genomeDCJ, nodePtr->leftDescPtr->genomeDCJ,
+								candidates[ i ]->inverseDCJ, nodePtr->leftDescPtr->inverseDCJ, 
 								candidates[ i ]->numPointsDCJ, nodePtr->leftDescPtr->numPointsDCJ,
 								phyloTreePtr->numberGenes );
-			newC = DCJdistance( candidates[ i ]->genomeDCJ, nodePtr->rightDescPtr->genomeDCJ, 
+			newC = DCJdistance( candidates[ i ]->genomeDCJ, nodePtr->rightDescPtr->genomeDCJ,
+								candidates[ i ]->inverseDCJ, nodePtr->rightDescPtr->inverseDCJ, 
 								candidates[ i ]->numPointsDCJ, nodePtr->rightDescPtr->numPointsDCJ,
 								phyloTreePtr->numberGenes );
 			newScore = newA + newB + newC;
@@ -1096,22 +1118,18 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 			nodePtr->leftDescPtr->edgeWeight = b; 
 			nodePtr->rightDescPtr->edgeWeight = c;
 
-			// Generate Inverse (or Copy) (CODEHERE) ...
+			/* copy inverse of candidate */
+			for ( j = 0; j < 2 * phyloTreePtr->numberGenes; j++ ) {
+				nodePtr->inverseDCJ[ j ] = candidates[ h ]->inverseDCJ[ j ];
+			}
 		}
 
 		/* free memory */
-		for ( i = 0; i < maxElements; i++) {
-			for( j = 0; j < 2 * phyloTreePtr->numberGenes; j++ ) {
-				free( candidates[ i ]->genomeDCJ[ j ] ); 
-			}
-			free( candidates[ i ]->genomeDCJ );
+		for ( i = 0; i < numCandidates; i++) {
+			freeCandidate( phyloTreePtr, candidates[ i ]);
 			free( candidates[ i ] );
 		}
 		free( candidates );
-
-		free( invGenome1 );
-		free( invGenome2 );
-		free( invGenome3 );
 	} // end-if
 }
 
@@ -1268,18 +1286,16 @@ int scoreTree( TreePtr phyloTreePtr, TreeNodePtr nodePtr, ParametersPtr paramsPt
 
 	if ( paramsPtr->distanceType == DCJ_DIST ) {
 		if ( nodePtr->type == LEAF_NODE ) {
-			nodePtr->edgeWeight = DCJdistance( nodePtr->genomeDCJ, 
-											nodePtr->ancestorPtr->genomeDCJ, 
-											nodePtr->numPointsDCJ, 
-											nodePtr->ancestorPtr->numPointsDCJ, 
+			nodePtr->edgeWeight = DCJdistance( nodePtr->genomeDCJ, nodePtr->ancestorPtr->genomeDCJ,
+											nodePtr->inverseDCJ, nodePtr->ancestorPtr->inverseDCJ,
+											nodePtr->numPointsDCJ, nodePtr->ancestorPtr->numPointsDCJ, 
 											phyloTreePtr->numberGenes );//--from dcjdist.c
 			distance = nodePtr->edgeWeight;
 		}
 		else { /* type is INTERNAL NODE */
-			nodePtr->edgeWeight = DCJdistance( nodePtr->genomeDCJ, 
-											nodePtr->ancestorPtr->genomeDCJ, 
-											nodePtr->numPointsDCJ, 
-											nodePtr->ancestorPtr->numPointsDCJ, 
+			nodePtr->edgeWeight = DCJdistance( nodePtr->genomeDCJ, nodePtr->ancestorPtr->genomeDCJ,
+											nodePtr->inverseDCJ, nodePtr->ancestorPtr->inverseDCJ, 
+											nodePtr->numPointsDCJ, nodePtr->ancestorPtr->numPointsDCJ, 
 											phyloTreePtr->numberGenes );//--from dcjdist.c 
 			distance = nodePtr->edgeWeight + 
 					scoreTree( phyloTreePtr, nodePtr->leftDescPtr, paramsPtr ) + 
