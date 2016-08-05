@@ -97,8 +97,8 @@ void initParameters( ParametersPtr paramsPtr )
 
     paramsPtr->initMethod       = R_LEAF_1BEST_EDGE;
     paramsPtr->opt              = BLANCHETTE; // (*)
-    //opt = KOVAC; //super slow, not good results (worst than BLANCHETTE)
-    //opt = GREEDY_CANDIDATES; // is slow, "almost" the same results as BLANCHETTE
+    //opt = KOVAC (rev dist); //super slow, not good results (worst than BLANCHETTE)
+    //opt = GREEDY_CANDIDATES (rev dist); // is slow, "almost" the same results as BLANCHETTE
 }
 
 void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
