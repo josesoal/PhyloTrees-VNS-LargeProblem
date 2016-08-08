@@ -129,6 +129,7 @@ void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
                 case 'd':
                     if ( strcmp( argv[ i + 1 ], "rev" ) == 0 ) {
                         paramsPtr->distanceType = INVERSION_DIST;
+                        paramsPtr->opt = BLANCHETTE;
                     }
                     else if ( strcmp( argv[ i + 1 ], "dcj" ) == 0 ) {
                         paramsPtr->distanceType = DCJ_DIST;
