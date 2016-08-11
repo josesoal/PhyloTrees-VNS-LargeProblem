@@ -42,12 +42,12 @@ struct parameters {
 	char 			       	*testsetName;
 	int 					unichromosomes; /* false if using multichromosomes genomes */
     int                    	circular; 		/* true if the dataset genomes are circular */
-    enum medianSolvers     	solver;
     enum distances         	distanceType;
-    enum initTreeMethod    	initMethod;
-    enum optimizer         	opt;             /* optimizer for small phylogeny problem */
+    enum medianSolvers     	solver;
     int                    	useOutgroup;
     char                   	*outgroup;
+    enum initTreeMethod    	initMethod;
+    enum optimizer         	opt;             /* optimizer for small phylogeny problem */
 };
 typedef struct parameters 	Parameters;
 typedef Parameters 			*ParametersPtr;

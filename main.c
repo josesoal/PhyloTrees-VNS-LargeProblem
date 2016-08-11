@@ -86,15 +86,15 @@ int main( int argc, char **argv )
 
 void initParameters( ParametersPtr paramsPtr )
 {
+    paramsPtr->seed             = time( NULL);
     paramsPtr->testsetName      = "";
+    paramsPtr->unichromosomes   = TRUE;
+    paramsPtr->circular         = TRUE; //Not used here. Must be updated in readGenome() - tree.c
     paramsPtr->distanceType     = INVERSION_DIST;
     paramsPtr->solver           = CAPRARA_INV_MEDIAN;
-    paramsPtr->unichromosomes   = TRUE;
-    paramsPtr->seed             = time( NULL);
     paramsPtr->useOutgroup      = FALSE;
     paramsPtr->outgroup         = "";
-    paramsPtr->circular         = TRUE; //Not used
-
+    
     paramsPtr->initMethod       = R_LEAF_1BEST_EDGE;
     paramsPtr->opt              = BLANCHETTE; // (*)
     //opt = KOVAC (rev dist); //super slow, not good results (worst than BLANCHETTE)
@@ -109,11 +109,21 @@ void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
     /* show parameter options */
     if ( argc == 1 ) {
         fprintf( stdout, "Parameter Options:\n" );
-        fprintf( stdout, "\t-d : distance (rev, dcj) \n" );
+        fprintf( stdout, "\t-d : evolutionary distance \n");
+        fprintf( stdout, "\t\t -d rev : reversal\n\t\t -d dcj : double-cut-join\n");
         fprintf( stdout, "\t-f : dataset filename\n" );
-        fprintf( stdout, "\t-m : multiple-chromosomes [optional] [default: single-chromosomes]\n" );
-        fprintf( stdout, "\t-s : seed [optional] [default: seed from system time]\n" );
-        fprintf( stdout, "\t-g : outgroup [optional] [default: not use outgroup]\n" );
+        fprintf( stdout, "\t\t -f filename\n" );
+        fprintf( stdout, "\t-m : use multiple-chromosomes [optional]\n" );
+        fprintf( stdout, "\t\t  (single-chromosomes is default if option is omitted]\n" );
+        fprintf( stdout, "\t-s : seed [optional]\n" );
+        fprintf( stdout, "\t\t -s some_seed\n\t\t(seed taken from system time by default if option is omitted)\n" );
+        fprintf( stdout, "\t-g : use an outgroup [optional]\n" );
+        fprintf( stdout, "\t\t -g outgroup\n\t\t(outgroup is not used by default if option is omitted)\n" );
+        fprintf( stdout, "\t-z : penalize dcj [optional]\n" );
+        fprintf( stdout, "\t\t -z ml : penalize multiple chromosomes\n" );
+        fprintf( stdout, "\t\t -z mlcir : penalize multiple circular chromosomes\n" );
+        fprintf( stdout, "\t\t -z lincir : penalize combinations of linear and circular chromosomes\n" );
+        fprintf( stdout, "\t\t (dont use penalize by default if option is omitted)\n" );
         
         //fprintf( stdout, " using the default testset: testsets/camp05_cond\n" );
         //fprintf( stdout, " try other >> ./main -t testsets/camp07_cond\n" );
@@ -152,6 +162,9 @@ void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
                 case 'g': 
                     paramsPtr->outgroup = argv[ i + 1 ]; 
                     paramsPtr->useOutgroup = TRUE;
+                    break;
+                case 'z':
+                    //Continue HERE ....
                     break;
                 default:
                     fprintf( stderr, " stderr: incorrect option: %c.\n", option );
