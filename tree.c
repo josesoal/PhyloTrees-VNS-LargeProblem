@@ -68,6 +68,7 @@ void allocateMemoryForNodes( TreePtr phyloTreePtr, ParametersPtr paramsPtr )
     	phyloTreePtr->nodesPtrArray[ i ]->organism     = NULL; 
     	phyloTreePtr->nodesPtrArray[ i ]->genome       = NULL;
         phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ    = NULL;
+        phyloTreePtr->nodesPtrArray[ i ]->inverseDCJ   = NULL;
         phyloTreePtr->nodesPtrArray[ i ]->numPointsDCJ = 0;
     	phyloTreePtr->nodesPtrArray[ i ]->edgeWeight   = -1;
     	phyloTreePtr->nodesPtrArray[ i ]->ancestorPtr  = NULL;
@@ -99,13 +100,13 @@ void allocateMemoryForNodes( TreePtr phyloTreePtr, ParametersPtr paramsPtr )
                     nomemMessage( "genomeDCJ[ j ]" ); 
             }
 
-            /* this is defined in funct. readGenomesDCJ(...) */
-            // phyloTreePtr->nodesPtrArray[ i ]->numPointsDCJ;
-
             phyloTreePtr->nodesPtrArray[ i ]->inverseDCJ = 
                 malloc( 2 * phyloTreePtr->numberGenes * sizeof( int ) );
             if ( phyloTreePtr->nodesPtrArray[ i ]->inverseDCJ == NULL )
-                nomemMessage( "inverseDCJ" ); 
+                nomemMessage( "inverseDCJ" );
+
+            /* this is defined in funct. readGenomesDCJ(...) */
+            // phyloTreePtr->nodesPtrArray[ i ]->numPointsDCJ; 
         }
     }
     else {

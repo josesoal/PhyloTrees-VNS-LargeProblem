@@ -94,7 +94,7 @@ void initParameters( ParametersPtr paramsPtr )
     paramsPtr->solver           = CAPRARA_INV_MEDIAN;
     paramsPtr->useOutgroup      = FALSE;
     paramsPtr->outgroup         = "";
-    
+    paramsPtr->penaltyType      = -1;
     paramsPtr->initMethod       = R_LEAF_1BEST_EDGE;
     paramsPtr->opt              = BLANCHETTE; // (*)
     //opt = KOVAC (rev dist); //super slow, not good results (worst than BLANCHETTE)
@@ -164,7 +164,19 @@ void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
                     paramsPtr->useOutgroup = TRUE;
                     break;
                 case 'z':
-                    //Continue HERE ....
+                    if ( strcmp( argv[ i + 1 ], "ml" ) == 0 ) {
+                        paramsPtr->penaltyType = MULTIPLE_CH;
+                    }
+                    else if ( strcmp( argv[ i + 1 ], "mlcir" ) == 0 ) {
+                        paramsPtr->penaltyType = MULT_CIRCULAR_CH;
+                    }
+                    else if ( strcmp( argv[ i + 1 ], "lincir" ) == 0 ) {
+                        paramsPtr->penaltyType = COMB_LIN_CIR_CH;
+                    }
+                    else {
+                        fprintf( stderr, " stderr: incorrect penalty type (-z).\n" );
+                        exit( EXIT_FAILURE ); 
+                    }
                     break;
                 default:
                     fprintf( stderr, " stderr: incorrect option: %c.\n", option );
@@ -181,7 +193,14 @@ void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
     /* discard some undesired cases */
     if ( paramsPtr->distanceType == INVERSION_DIST && 
             paramsPtr->unichromosomes == FALSE ) {
-        fprintf( stderr, " stderr: the program does not support using the reversal distance and multiple-chromosome genomes.\n" );
+        fprintf( stderr, " stderr: the program does not support using the reversal" );
+        fprintf( stderr, " distance and multiple-chromosome genomes.\n" );
+        exit( EXIT_FAILURE );
+    }
+    if ( paramsPtr->distanceType == INVERSION_DIST && 
+            paramsPtr->penaltyType != -1 ) {
+        fprintf( stderr, " stderr: the program does not support using the reversal" );
+        fprintf( stderr, " distance and penalize multiple chromosomes.\n" );
         exit( EXIT_FAILURE );
     }
 }

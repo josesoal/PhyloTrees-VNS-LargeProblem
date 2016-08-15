@@ -254,7 +254,11 @@ void applyDCJ( PointDCJPtr *genomeDCJ, int *numPointsDCJ, int i, int j, int firs
 
 }
 
-
+int candidatePenalized( CandidatePtr candPtr, ParametersPtr paramsPtr ) 
+{
+	//FALTA ...
+	return FALSE;
+}
 
 
 

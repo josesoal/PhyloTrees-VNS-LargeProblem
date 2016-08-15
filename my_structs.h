@@ -36,6 +36,7 @@ enum medianSolvers {COALESTSP, 			/* Approximate TSP solver */
                     };
 enum initTreeMethod {R_LEAF_R_EDGE, R_LEAF_1BEST_EDGE};
 enum optimizer {BLANCHETTE, KOVAC, GREEDY_CANDIDATES};
+enum penalty {MULTIPLE_CH, MULT_CIRCULAR_CH, COMB_LIN_CIR_CH};
 
 struct parameters {
 	unsigned int 			seed;
@@ -46,6 +47,7 @@ struct parameters {
     enum medianSolvers     	solver;
     int                    	useOutgroup;
     char                   	*outgroup;
+    enum penalty 			penaltyType;
     enum initTreeMethod    	initMethod;
     enum optimizer         	opt;             /* optimizer for small phylogeny problem */
 };
@@ -63,11 +65,12 @@ typedef struct pointDCJ 		PointDCJ;
 typedef PointDCJ 				*PointDCJPtr;
 
 struct candidate {
-	//unsigned char *genome;//unsigned char is 1 byte (0 to 255)
-	int 				*genome;
-	PointDCJPtr			*genomeDCJ;
-	int 				*inverseDCJ;
-	int 				numPointsDCJ; 
+	int 			*genome;
+	PointDCJPtr		*genomeDCJ;
+	int 			*inverseDCJ;
+	int 			numPointsDCJ;
+	int 			numLinearCh; /* number of linear chromosomes */
+	int 			numCircularCh; /* number of circular chromosomes */	 
 };
 typedef struct candidate Candidate;
 typedef Candidate 		*CandidatePtr;

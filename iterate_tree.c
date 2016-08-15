@@ -41,6 +41,8 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 	TreeNodePtr nodePtr, ParametersPtr paramsPtr );
 static void allocateMemForCandidate( TreePtr phyloTreePtr, CandidatePtr *candPtr );
 static void freeCandidate( TreePtr phyloTreePtr, CandidatePtr *candPtr ); 
+static void verifyPenalization( TreePtr phyloTreePtr, 
+	CandidatePtr *candidatePtrArray, int *h, ParametersPtr paramsPtr ) ;
 
 int labelOptimizeTree( TreePtr phyloTreePtr, ParametersPtr paramsPtr )
 {
@@ -361,13 +363,14 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 				}
 
 				/* apply DCJ on copy and generate candidate */
-				applyDCJ( candidatePtrArray[ h ]->genomeDCJ, &candidatePtrArray[ h ]->numPointsDCJ, i, i, TRUE );//--from dcjdist.c
+				applyDCJ( candidatePtrArray[ h ]->genomeDCJ, 
+					&candidatePtrArray[ h ]->numPointsDCJ, i, i, TRUE );//--from dcjdist.c
 			
 				calculateInverseGenome( candidatePtrArray[ h ]->genomeDCJ, 
 										candidatePtrArray[ h ]->numPointsDCJ, 
-										candidatePtrArray[ h ]->inverseDCJ );
+										candidatePtrArray[ h ]->inverseDCJ );//--from dcjdist.c
 
-				h++;
+				verifyPenalization( phyloTreePtr, candidatePtrArray, &h, paramsPtr );
 			}
 		}
 
@@ -417,9 +420,9 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 				
 				calculateInverseGenome( candidatePtrArray[ h ]->genomeDCJ, 
 										candidatePtrArray[ h ]->numPointsDCJ, 
-										candidatePtrArray[ h ]->inverseDCJ );
+										candidatePtrArray[ h ]->inverseDCJ );//--from dcjdist.c
 
-				h++;
+				verifyPenalization( phyloTreePtr, candidatePtrArray, &h, paramsPtr );
 
 				/* do the second FORM in case one of the point is a adjacency */
 				if ( nodePtr->genomeDCJ[ i ]->type == ADJACENCY || 
@@ -439,9 +442,10 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 					
 					calculateInverseGenome( candidatePtrArray[ h ]->genomeDCJ, 
 										candidatePtrArray[ h ]->numPointsDCJ, 
-										candidatePtrArray[ h ]->inverseDCJ );
+										candidatePtrArray[ h ]->inverseDCJ );//--from dcjdist.c
 
-					h++;
+					verifyPenalization( phyloTreePtr, candidatePtrArray, &h, paramsPtr );
+					
 				}
 			}
 		}
@@ -494,7 +498,6 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 		/* free memory */
 		for ( i = 0; i < numCandidates; i++) {
 			freeCandidate( phyloTreePtr, &candidatePtrArray[ i ] );
-			//free( candidatesPtrArray[ i ] );
 		}
 		free( candidatePtrArray );
 	} // end-if
@@ -705,6 +708,10 @@ static void allocateMemForCandidate( TreePtr phyloTreePtr, CandidatePtr *candPtr
 
 	( *candPtr )->inverseDCJ = malloc( 2 * phyloTreePtr->numberGenes * sizeof( int ) );
 	if ( ( *candPtr )->inverseDCJ == NULL ) nomemMessage( "(*candPtr)->inverseDCJ" );
+
+	( *candPtr )->numPointsDCJ = 0;
+	( *candPtr )->numLinearCh = 0;
+	( *candPtr )->numCircularCh = 0;
 }
 
 static void freeCandidate( TreePtr phyloTreePtr, CandidatePtr *candPtr )
@@ -717,6 +724,21 @@ static void freeCandidate( TreePtr phyloTreePtr, CandidatePtr *candPtr )
 	}
 	free( ( *candPtr )->genomeDCJ );
 	free( ( *candPtr ) );
+}
+
+static void verifyPenalization( TreePtr phyloTreePtr, 
+	CandidatePtr *candidatePtrArray, int *h, ParametersPtr paramsPtr ) 
+{
+	/* if option of penalize chromosomes was chosen and the candidate was penalized
+	then free candidate. Otherwise, increment the counter of candidates */
+	if ( paramsPtr->penaltyType != -1 && 
+		candidatePenalized( candidatePtrArray[ ( *h ) ], paramsPtr ) == TRUE ) 
+	{
+		freeCandidate( phyloTreePtr, &candidatePtrArray[ ( *h ) ] );							
+	}
+	else {
+		( *h )++;
+	}
 }
 
 /* initialize tree using a depth first search (DFS) approach.
