@@ -254,9 +254,40 @@ void applyDCJ( PointDCJPtr *genomeDCJ, int *numPointsDCJ, int i, int j, int firs
 
 }
 
+static void countLinearCircularChromosomes( CandidatePtr candPtr, 
+	ParametersPtr paramsPtr, int *numLinearChromosomes, int *numCircularChromosomes )
+{
+
+}
+
 int candidatePenalized( CandidatePtr candPtr, ParametersPtr paramsPtr ) 
 {
-	//FALTA ...
+	int numLinearChromosomes, numCircularChromosomes;
+
+	numLinearChromosomes = 0;
+	numCircularChromosomes = 0;
+	countLinearCircularChromosomes( candPtr, paramsPtr, &numLinearChromosomes, &numCircularChromosomes );
+
+	switch ( paramsPtr->penaltyType ) {
+		case MULTIPLE_CH: /* penalize multiple chromosomes */
+			if ( numLinearChromosomes + numCircularChromosomes > 1 ) {
+				return TRUE;
+			}
+			break;
+		case MUL_CIRCULAR_CH: /* penalize multiple circular chromosomes */
+			if ( numCircularChromosomes > 1 ) {
+				return TRUE;
+			}
+			break;
+		case COMB_LIN_CIR_CH: /* penalize combinations of linear and circular chr. */
+			if ( numLinearChromosomes > 1 && numCircularChromosomes > 1 ) {
+				return TRUE;
+			}
+			break;
+		default:
+			fprintf( stderr, " stderr: incorrect penalty type\n" );
+			exit( EXIT_FAILURE );
+	}
 	return FALSE;
 }
 
