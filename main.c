@@ -120,9 +120,10 @@ void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
         fprintf( stdout, "\t-g : use an outgroup [optional]\n" );
         fprintf( stdout, "\t\t -g outgroup\n\t\t(outgroup is not used by default if option is omitted)\n" );
         fprintf( stdout, "\t-z : penalize dcj [optional]\n" );
-        fprintf( stdout, "\t\t -z ml : penalize multiple chromosomes\n" );
-        fprintf( stdout, "\t\t -z mlcir : penalize multiple circular chromosomes\n" );
-        fprintf( stdout, "\t\t -z lincir : penalize combinations of linear and circular chromosomes\n" );
+        fprintf( stdout, "\t\t -z 0 : penalize multiple chromosomes\n" );
+        fprintf( stdout, "\t\t -z 1 : penalize multiple circular chromosomes\n" );
+        fprintf( stdout, "\t\t -z 2 : penalize linear chromosomes, and multiple circular chromosomes\n" );    
+        fprintf( stdout, "\t\t -z 3 : penalize combinations of linear and circular chromosomes\n" );
         fprintf( stdout, "\t\t (dont use penalize by default if option is omitted)\n" );
         
         //fprintf( stdout, " using the default testset: testsets/camp05_cond\n" );
@@ -164,14 +165,17 @@ void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
                     paramsPtr->useOutgroup = TRUE;
                     break;
                 case 'z':
-                    if ( strcmp( argv[ i + 1 ], "ml" ) == 0 ) {
+                    if ( strcmp( argv[ i + 1 ], "0" ) == 0 ) {
                         paramsPtr->penaltyType = MULTIPLE_CH;
                     }
-                    else if ( strcmp( argv[ i + 1 ], "mlcir" ) == 0 ) {
+                    if ( strcmp( argv[ i + 1 ], "1" ) == 0 ) {
                         paramsPtr->penaltyType = MULT_CIRCULAR_CH;
                     }
-                    else if ( strcmp( argv[ i + 1 ], "lincir" ) == 0 ) {
-                        paramsPtr->penaltyType = COMB_LIN_CIR_CH;
+                    else if ( strcmp( argv[ i + 1 ], "2" ) == 0 ) {
+                        paramsPtr->penaltyType = LIN_CH_MULT_CIRC_CH;
+                    }
+                    else if ( strcmp( argv[ i + 1 ], "3" ) == 0 ) {
+                        paramsPtr->penaltyType = COMB_LIN_CIRC_CH;
                     }
                     else {
                         fprintf( stderr, " stderr: incorrect penalty type (-z).\n" );
