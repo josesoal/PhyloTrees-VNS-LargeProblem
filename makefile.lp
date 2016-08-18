@@ -4,7 +4,7 @@ LFLAGS = -g -Wall # flags when *linking*
 LIBS = -lm # math library
 SOURCES = main.c vns.c tree.c iterate_tree.c median_solvers.c queue.c convert.c cheaptsp.c bbtsp.c inversion_median_alberto.c invdist.c dcjdist.c uf.c binencode.c random.c measure_time.c auxiliary.c condense.c
 OBJECTS = $(SOURCES:.c=.o)
-EXECUTABLE = main
+EXECUTABLE = large_phylogeny
 
 all: $(EXECUTABLE)
 

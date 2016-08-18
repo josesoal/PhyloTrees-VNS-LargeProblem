@@ -108,23 +108,25 @@ void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
 
     /* show parameter options */
     if ( argc == 1 ) {
-        fprintf( stdout, "Parameter Options:\n" );
+        fprintf( stdout, "\nParameter Options:\n" );
         fprintf( stdout, "\t-d : evolutionary distance \n");
         fprintf( stdout, "\t\t -d rev : reversal\n\t\t -d dcj : double-cut-join\n");
         fprintf( stdout, "\t-f : dataset filename\n" );
         fprintf( stdout, "\t\t -f filename\n" );
         fprintf( stdout, "\t-m : use multiple-chromosomes [optional]\n" );
-        fprintf( stdout, "\t\t  (single-chromosomes is default if option is omitted]\n" );
+        fprintf( stdout, "\t\t(single-chromosomes is default if option is omitted)\n" );
         fprintf( stdout, "\t-s : seed [optional]\n" );
-        fprintf( stdout, "\t\t -s some_seed\n\t\t(seed taken from system time by default if option is omitted)\n" );
+        fprintf( stdout, "\t\t -s some_seed\n" );
+        fprintf( stdout, "\t\t(seed taken from system time by default if option is omitted)\n" );
         fprintf( stdout, "\t-g : use an outgroup [optional]\n" );
-        fprintf( stdout, "\t\t -g outgroup\n\t\t(outgroup is not used by default if option is omitted)\n" );
+        fprintf( stdout, "\t\t -g outgroup\n" );
+        fprintf( stdout, "\t\t(outgroup is not used by default if option is omitted).\n" );
         fprintf( stdout, "\t-z : penalize dcj [optional]\n" );
         fprintf( stdout, "\t\t -z 0 : penalize multiple chromosomes\n" );
         fprintf( stdout, "\t\t -z 1 : penalize multiple circular chromosomes\n" );
-        fprintf( stdout, "\t\t -z 2 : penalize linear chromosomes, and multiple circular chromosomes\n" );    
-        fprintf( stdout, "\t\t -z 3 : penalize combinations of linear and circular chromosomes\n" );
-        fprintf( stdout, "\t\t (dont use penalize by default if option is omitted)\n" );
+        fprintf( stdout, "\t\t -z 2 : penalize linear chrs., and multiple circular chrs.\n" );    
+        fprintf( stdout, "\t\t -z 3 : penalize combinations of linear and circular chrs.\n" );
+        fprintf( stdout, "\t\t(penalize is not used by default if option is omitted)\n\n" );
         
         //fprintf( stdout, " using the default testset: testsets/camp05_cond\n" );
         //fprintf( stdout, " try other >> ./main -t testsets/camp07_cond\n" );

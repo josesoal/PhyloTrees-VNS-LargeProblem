@@ -18,7 +18,7 @@ random.o
 tree.o
 uf.o
 vns.o
-main
+large_phylogeny
 VNS_modifications.txt
 newick_tree.txt
 
