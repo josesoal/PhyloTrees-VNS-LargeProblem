@@ -296,6 +296,57 @@ static void initializeTreeWithDescendants( TreePtr phyloTreePtr,
 	}
 }
 
+static void initializeTreeWithDescendantsRandomly( TreePtr phyloTreePtr, 
+		TreeNodePtr nodePtr, ParametersPtr paramsPtr, int orientation )
+{
+
+	//NOT IMPLEMENTED YET !
+
+	int i;
+
+	if ( nodePtr->type == INTERNAL_NODE ) {
+		if ( orientation == GO_LEFT ) {
+			initializeTreeWithDescendants( phyloTreePtr, nodePtr->leftDescPtr, paramsPtr, GO_RIGHT );
+			initializeTreeWithDescendants( phyloTreePtr, nodePtr->rightDescPtr, paramsPtr, GO_LEFT );
+		}
+		else { // orientation == GO_RIGHT
+			initializeTreeWithDescendants( phyloTreePtr, nodePtr->leftDescPtr, paramsPtr, GO_LEFT );
+			initializeTreeWithDescendants( phyloTreePtr, nodePtr->rightDescPtr, paramsPtr, GO_RIGHT );
+		}
+		//p = irand(2); // 0 <= p <= 1
+
+		if ( orientation == GO_LEFT ) {
+			/* copy left descendant */
+			nodePtr->numPointsDCJ = nodePtr->leftDescPtr->numPointsDCJ;
+			for ( i = 0; i < nodePtr->numPointsDCJ; i++ ) {
+				nodePtr->genomeDCJ[i]->x = nodePtr->leftDescPtr->genomeDCJ[i]->x;
+				nodePtr->genomeDCJ[i]->y = nodePtr->leftDescPtr->genomeDCJ[i]->y;
+				nodePtr->genomeDCJ[i]->type = nodePtr->leftDescPtr->genomeDCJ[i]->type;
+			}
+
+			/* copy inverse */
+			for ( i = 0; i < 2 * phyloTreePtr->numberGenes; i++ ) {
+				nodePtr->inverseDCJ[ i ] = nodePtr->leftDescPtr->inverseDCJ[ i ];
+			}
+		}
+		else { // orientation == GO_RIGHT
+			/* copy right descendant */
+			nodePtr->numPointsDCJ = nodePtr->rightDescPtr->numPointsDCJ;
+			for ( i = 0; i < nodePtr->numPointsDCJ; i++ ) {
+				nodePtr->genomeDCJ[i]->x = nodePtr->rightDescPtr->genomeDCJ[i]->x;
+				nodePtr->genomeDCJ[i]->y = nodePtr->rightDescPtr->genomeDCJ[i]->y;
+				nodePtr->genomeDCJ[i]->type = nodePtr->rightDescPtr->genomeDCJ[i]->type;
+			}
+
+			/* copy inverse */
+			for ( i = 0; i < 2 * phyloTreePtr->numberGenes; i++ ) {
+				nodePtr->inverseDCJ[ i ] = nodePtr->rightDescPtr->inverseDCJ[ i ];
+			}
+		}
+
+	}
+}
+
 /* NOTE: in the first call of this procedure, the second argument 
 			must be the right descendant of the starting node */
 static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr, 
