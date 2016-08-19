@@ -10,7 +10,8 @@ dcjdist.o
 invdist.o
 inversion_median_alberto.o
 iterate_tree.o
-main.o
+main_large.o
+main_small.o
 measure_time.o
 median_solvers.o
 queue.o

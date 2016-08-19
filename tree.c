@@ -381,6 +381,12 @@ static void readGenomesDCJ( TreePtr phyloTreePtr, RawDatasetPtr rdatasetPtr )
     }//end-for
 }
 
+void createTopologyFromNewickFormat( TreePtr phyloTreePtr, ParametersPtr paramsPtr )
+{
+    //Implement! ...
+
+}
+
 int createInitialTreeTopology( TreePtr phyloTreePtr, ParametersPtr paramsPtr )
 {
     int i, maxIterations, score, newScore;

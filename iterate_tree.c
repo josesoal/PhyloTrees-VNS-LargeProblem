@@ -40,7 +40,7 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 static void allocateMemForCandidate( TreePtr phyloTreePtr, CandidatePtr *candPtr );
 static void freeCandidate( TreePtr phyloTreePtr, CandidatePtr *candPtr ); 
 static void verifyPenalization( TreePtr phyloTreePtr, 
-	CandidatePtr *candidatePtrArray, int *h, ParametersPtr paramsPtr ) ;
+	CandidatePtr *candidatePtrArray, int *h, ParametersPtr paramsPtr );
 
 int labelOptimizeTree( TreePtr phyloTreePtr, ParametersPtr paramsPtr )
 {
@@ -296,7 +296,7 @@ static void initializeTreeWithDescendants( TreePtr phyloTreePtr,
 	}
 }
 
-static void initializeTreeWithDescendantsRandomly( TreePtr phyloTreePtr, 
+/*static*/ void initializeTreeWithDescendantsRandomly( TreePtr phyloTreePtr, 
 		TreeNodePtr nodePtr, ParametersPtr paramsPtr, int orientation )
 {
 

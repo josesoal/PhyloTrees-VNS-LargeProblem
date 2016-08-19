@@ -19,6 +19,7 @@ void copyTreeInto( TreePtr phyloTree1Ptr,
 	TreePtr phyloTree2Ptr, int copyStructure, ParametersPtr paramsPtr);
 void readGenomesFromRawData( 
     TreePtr phyloTreePtr, ParametersPtr paramsPtr, RawDatasetPtr rdatasetPtr );
+void createTopologyFromNewickFormat( TreePtr phyloTreePtr, ParametersPtr paramsPtr );
 int createInitialTreeTopology(TreePtr phyloTreePtr, ParametersPtr paramsPtr );
 
 void unlinkNode(TreeNodePtr nodePtr, TreeNodePtr *internalNodePtr);
