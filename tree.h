@@ -13,6 +13,17 @@
 #include "my_structs.h"
 #include "condense.h"
 
+/* this auxiliary structure is used to save parental 
+	relationship taken from a newick tree format */
+struct genomeNode {
+	char name[ MAX_STRING_LEN ];
+	int parentIndex;
+    int visited;
+};
+typedef struct genomeNode GNode;
+typedef GNode *GNodePtr;
+
+
 void allocateMemoryForNodes( TreePtr phyloTreePtr, ParametersPtr paramsPtr );
 void freeTree( TreePtr phyloTreePtr, ParametersPtr paramsPtr );
 void copyTreeInto( TreePtr phyloTree1Ptr, 

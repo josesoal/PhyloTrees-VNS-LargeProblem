@@ -16,14 +16,20 @@
 #include "random.h"
 #include "iterate_tree.h"
 #include "dcjdist.h"
+#include "stack_array.h" 
 
 static void readGenomes( TreePtr phyloTreePtr, RawDatasetPtr rdatasetPtr );
 static void readGenomesDCJ( TreePtr phyloTreePtr, RawDatasetPtr rdatasetPtr );
+static void readNewickFormat( char *newickTree, char *filename );
+static int recoverNamesFromNewickFormat( char *newickTree, GNode *nodes );
+static void calculateParentalRelationships( 
+    char *newickTree, GNode *nodes, int numLeaves );
 static void createTreeTopologyRandomly( TreePtr phyloTreePtr );
 static void createTreeRandomLeaf_FirstBestEdge( 
     TreePtr phyloTreePtr, ParametersPtr paramsPtr );
 static void createTreeWith3LeavesRandomly( TreePtr phyloTreePtr );
 static void selectLeafNodeByName( 
+    TreePtr phyloTreePtr, TreeNodePtr *nodePtr, char * name );
 static void selectLeafNodeRandomly( TreePtr phyloTreePtr, TreeNodePtr *nodePtr );
 static void selectInternalNode( TreePtr phyloTreePtr, TreeNodePtr *nodePtr );
 static void selectEdgeRandomly( TreePtr phyloTreePtr, 
@@ -382,10 +388,166 @@ static void readGenomesDCJ( TreePtr phyloTreePtr, RawDatasetPtr rdatasetPtr )
     }//end-for
 }
 
+/* This function is used just for the Small-Phylogny case */
 void createTopologyFromNewickFormat( TreePtr phyloTreePtr, ParametersPtr paramsPtr )
 {
-    //Implement! ...
+    char newickTree[ MAX_NEWICK_LEN ];
+    int numNodes, numLeaves;
+    GNode nodes[ MAX_NODES ]; 
 
+    readNewickFormat( newickTree,  paramsPtr->newickFile );
+    numLeaves = recoverNamesFromNewickFormat( newickTree, nodes );
+    numNodes = numLeaves + ( numLeaves - 2 ); /* leaves + internal nodes */
+    calculateParentalRelationships( newickTree, nodes, numLeaves );
+
+    /* create topology based on the parental relationships */
+    
+    //Continue here...
+
+}
+
+static void readNewickFormat( char *newickTree, char *filename )
+{
+    FILE *filePtr;
+    int c; /* use int (not char) for the EOF */
+    int k;
+    char buffer[ MAX_NEWICK_LEN ];
+
+    if ( ( filePtr = fopen( filename, "r" ) ) == NULL ) {
+        fprintf( stderr, " stderr: %s file could not be opened.\n", filename );
+        exit( EXIT_FAILURE );
+    }
+    else {
+            /* read newick format into buffer */
+            k = 0;
+            while ( ( c = fgetc( filePtr ) ) != EOF ) {
+                if ( c == '\n' ){
+                    buffer[ k ] = '\0';
+                    break;
+                }
+                else{
+                    buffer[ k ] = c;
+                    k++;
+                    if ( k + 1 > MAX_NEWICK_LEN ) {
+                        fprintf( stderr, " stderr: increment MAX_NEWICK_LEN value!\n" );
+                        exit( EXIT_FAILURE );
+                    }
+                }
+            }
+            strcpy( newickTree, buffer ); 
+    }
+    fclose( filePtr );
+}
+
+/* return number of leaves in the newick format */
+static int recoverNamesFromNewickFormat( char *newickTree, GNode *nodes ) 
+{
+    int i, j , k, len;
+    char buffer[ MAX_STRING_LEN ];
+
+    i = 0; 
+    j = 0; 
+    k = 0;
+    len = strlen( newickTree );
+    while ( i < len ) {
+        if ( newickTree[ i ] == '(' || 
+                    newickTree[ i ] == ')' || 
+                    newickTree[ i ] == ','  ) {
+            if ( k > 0 ) {
+                buffer[ k ] = '\0';
+                strcpy( nodes[ j ].name, buffer );
+                k = 0;
+                j++;
+            }
+        }
+        else {
+            buffer[ k ] = newickTree[ i ];
+            k++;
+            if ( k + 1 > MAX_STRING_LEN) {
+                fprintf( stderr, " stderr: increment MAX_STRING_LEN value!\n" );
+                exit( EXIT_FAILURE );
+            }
+        }
+        i++;
+    }
+
+    return j;
+}
+
+static void calculateParentalRelationships( char *newickTree, GNode *nodes, int numLeaves )
+{
+    Stack parenthesisSt;
+    Stack namesSt;
+    char *c1, *c2;
+    int i, j, k, len;
+    int numNodes, indexInternal;
+    char buffer[ MAX_STRING_LEN ];
+
+    numNodes = numLeaves + ( numLeaves - 2 ); /* leaves + internal nodes */
+    indexInternal = numLeaves; /* internal node starts at numLeaves */
+    len = strlen( newickTree );
+
+    i = 0; 
+    k = 0;
+    buffer[ 0 ] = newickTree[ i ];
+    buffer[ 1 ] = '\0';
+    push( &parenthesisSt, buffer );
+    i++;
+    while ( ! isStackEmpty( &parenthesisSt ) && i < len ) {
+        if ( newickTree[ i ] == '(' || newickTree[ i ] == ')' ) {
+            if ( k > 0 ) {
+                buffer[ k ] = '\0';
+                push( &namesSt, buffer );
+                k = 0; 
+            }
+            buffer[ 0 ] = newickTree[ i ];
+            buffer[ 1 ] = '\0';
+            push( &parenthesisSt, buffer );
+        }
+        else if ( newickTree[ i ] == ',' ) {
+            if ( k > 0 ) {
+                buffer[ k ] = '\0';
+                push( &namesSt, buffer );
+                k = 0;
+            }
+        }
+        else {
+            buffer[ k ] = newickTree[ i ];
+            k++;
+        }
+
+        char str[ 3 ];
+        if ( strcmp( parenthesisSt.s[ parenthesisSt.top - 1 ], "(" ) == 0 
+            && strcmp( parenthesisSt.s[ parenthesisSt.top ], ")" ) == 0 ) 
+        {
+            pop( &parenthesisSt );
+            pop( &parenthesisSt );
+
+            c1 = pop( &namesSt );
+            c2 = pop( &namesSt );
+
+            for ( j = 0; j< numNodes ;j++ ) {
+                if ( strcmp( c1, nodes[ j ].name ) == 0 || 
+                            strcmp( c2, nodes[ j ].name ) == 0 ) {
+                    if ( isStackEmpty( &parenthesisSt ) ) {
+                        nodes[ j ].parentIndex = -1; // * == -1
+                    } 
+                    else {
+                        nodes[ j ].parentIndex = indexInternal;   
+                    }               
+                }
+            }
+            if ( ! isStackEmpty( &parenthesisSt ) ) {
+                str[ 0 ] = 'i';
+                str[ 1 ] = indexInternal + '0';
+                str[ 2 ] = '\0';
+                strcpy( nodes[ indexInternal ].name, str );
+                push( &namesSt, str );
+                indexInternal++; 
+            }
+        }
+        i++;
+    }
 }
 
 int createInitialTreeTopology( TreePtr phyloTreePtr, ParametersPtr paramsPtr )

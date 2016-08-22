@@ -10,11 +10,15 @@
 #ifndef STACK_ARRAY_
 #define STACK_ARRAY_
 
+#include "my_structs.h"
+
+/* These constants are used just for the Small-Phylogeny case */
 #define STACK_SIZE 100
-#define BUFFER_SIZE 50
+#define MAX_NEWICK_LEN 10 * MAX_STRING_LEN
+#define MAX_NODES 50 /* Max num of nodes (leaves + internal) of a Tree */
 
 struct stack {
-    char s[STACK_SIZE][BUFFER_SIZE];
+    char s[ STACK_SIZE ][ MAX_STRING_LEN ];
     int top;
 };
 typedef struct stack Stack;
@@ -22,7 +26,7 @@ typedef Stack *StackPtr;
 
 
 void push( StackPtr stackPtr, char * item );
-int isEmpty( StackPtr stackPtr );
+int isStackEmpty( StackPtr stackPtr );
 char* pop( StackPtr stackPtr );
 void show( StackPtr stackPtr );
 

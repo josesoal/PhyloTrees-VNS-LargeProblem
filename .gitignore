@@ -19,6 +19,8 @@ random.o
 tree.o
 uf.o
 vns.o
+stack_array.o
+small_phylogeny
 large_phylogeny
 VNS_modifications.txt
 newick_tree.txt

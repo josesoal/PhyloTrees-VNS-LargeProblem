@@ -15,7 +15,7 @@ void push( StackPtr stackPtr, char * item ) {
     strcpy( stackPtr->s[ stackPtr->top ], item );
 }
 
-int isEmpty( StackPtr stackPtr ) {
+int isStackEmpty( StackPtr stackPtr ) {
     if ( stackPtr->top <= -1 ) return 1;
     return 0;
 }
@@ -29,7 +29,7 @@ char* pop( StackPtr stackPtr ) {
 
 void show( StackPtr stackPtr ) {
     int i;
-    if ( isEmpty( stackPtr ) )
+    if ( isStackEmpty( stackPtr ) )
         printf( "Stack Is Empty!\n" );
     else {
         for ( i = stackPtr->top; i >= 0; i-- )
