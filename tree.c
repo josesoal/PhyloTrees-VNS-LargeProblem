@@ -20,9 +20,10 @@
 static void readGenomes( TreePtr phyloTreePtr, RawDatasetPtr rdatasetPtr );
 static void readGenomesDCJ( TreePtr phyloTreePtr, RawDatasetPtr rdatasetPtr );
 static void createTreeTopologyRandomly( TreePtr phyloTreePtr );
-static void createTreeRandomLeaf_FirstBestEdge( TreePtr phyloTreePtr, ParametersPtr paramsPtr );
+static void createTreeRandomLeaf_FirstBestEdge( 
+    TreePtr phyloTreePtr, ParametersPtr paramsPtr );
 static void createTreeWith3LeavesRandomly( TreePtr phyloTreePtr );
-static void selectLeafNodeByName( TreePtr phyloTreePtr, TreeNodePtr *nodePtr, char * name );
+static void selectLeafNodeByName( 
 static void selectLeafNodeRandomly( TreePtr phyloTreePtr, TreeNodePtr *nodePtr );
 static void selectInternalNode( TreePtr phyloTreePtr, TreeNodePtr *nodePtr );
 static void selectEdgeRandomly( TreePtr phyloTreePtr, 
