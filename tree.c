@@ -22,8 +22,8 @@ static void readGenomes( TreePtr phyloTreePtr, RawDatasetPtr rdatasetPtr );
 static void readGenomesDCJ( TreePtr phyloTreePtr, RawDatasetPtr rdatasetPtr );
 static void readNewickFormat( char *newickTree, char *filename );
 static int recoverNamesFromNewickFormat( char *newickTree, GNode *nodes );
-static void calculateParentalRelationships( 
-    char *newickTree, GNode *nodes, int numLeaves );
+static void generateGraphOfNodes( 
+    char *newickTree, GNode *nodes, int numLeaves, int graph[ MAX_NODES ][ MAX_NODES ] );
 static void createTreeTopologyRandomly( TreePtr phyloTreePtr );
 static void createTreeRandomLeaf_FirstBestEdge( 
     TreePtr phyloTreePtr, ParametersPtr paramsPtr );
@@ -391,18 +391,28 @@ static void readGenomesDCJ( TreePtr phyloTreePtr, RawDatasetPtr rdatasetPtr )
 /* This function is used just for the Small-Phylogny case */
 void createTopologyFromNewickFormat( TreePtr phyloTreePtr, ParametersPtr paramsPtr )
 {
+    /* Note: constants MAX_NEWICK_LEN  and MAX_NODES are in stack_array.h*/
     char newickTree[ MAX_NEWICK_LEN ];
-    int numNodes, numLeaves;
+    int numNodes, numLeaves, i, j;
     GNode nodes[ MAX_NODES ]; 
 
     readNewickFormat( newickTree,  paramsPtr->newickFile );
     numLeaves = recoverNamesFromNewickFormat( newickTree, nodes );
     numNodes = numLeaves + ( numLeaves - 2 ); /* leaves + internal nodes */
-    calculateParentalRelationships( newickTree, nodes, numLeaves );
 
-    /* create topology based on the parental relationships */
+    int graph[ MAX_NODES ][ MAX_NODES ];
+    for ( i = 0; i < numNodes; i++ ) {
+        for ( j = 0; j < numNodes; j++ ) {
+            graph[ i ][ j ] = 0;
+        }
+    }
+    generateGraphOfNodes( newickTree, nodes, numLeaves, graph );
+
+    /* create tree topology based on the graph of nodes */
     
     //Continue here...
+    //Create a queue of ints
+    //Do Breadth-First search
 
 }
 
@@ -474,13 +484,14 @@ static int recoverNamesFromNewickFormat( char *newickTree, GNode *nodes )
     return j;
 }
 
-static void calculateParentalRelationships( char *newickTree, GNode *nodes, int numLeaves )
+static void generateGraphOfNodes( 
+    char *newickTree, GNode *nodes, int numLeaves, int graph[ MAX_NODES ][ MAX_NODES ] )
 {
     Stack parenthesisSt;
     Stack namesSt;
     char *c1, *c2;
     int i, j, k, len;
-    int numNodes, indexInternal;
+    int numNodes, indexInternal, index_c1, index_c2;
     char buffer[ MAX_STRING_LEN ];
 
     numNodes = numLeaves + ( numLeaves - 2 ); /* leaves + internal nodes */
@@ -494,6 +505,7 @@ static void calculateParentalRelationships( char *newickTree, GNode *nodes, int 
     push( &parenthesisSt, buffer );
     i++;
     while ( ! isStackEmpty( &parenthesisSt ) && i < len ) {
+        /* put parenthesis and names into stacks */
         if ( newickTree[ i ] == '(' || newickTree[ i ] == ')' ) {
             if ( k > 0 ) {
                 buffer[ k ] = '\0';
@@ -515,35 +527,47 @@ static void calculateParentalRelationships( char *newickTree, GNode *nodes, int 
             buffer[ k ] = newickTree[ i ];
             k++;
         }
-
+        /* verify if parenthesis stack have "(" and ")" */
         char str[ 3 ];
         if ( strcmp( parenthesisSt.s[ parenthesisSt.top - 1 ], "(" ) == 0 
             && strcmp( parenthesisSt.s[ parenthesisSt.top ], ")" ) == 0 ) 
         {
             pop( &parenthesisSt );
             pop( &parenthesisSt );
-
             c1 = pop( &namesSt );
             c2 = pop( &namesSt );
 
+            /* find the index of c1 and c2 */
+            index_c1 = -1;
+            index_c2 = -1;
             for ( j = 0; j< numNodes ;j++ ) {
-                if ( strcmp( c1, nodes[ j ].name ) == 0 || 
-                            strcmp( c2, nodes[ j ].name ) == 0 ) {
-                    if ( isStackEmpty( &parenthesisSt ) ) {
-                        nodes[ j ].parentIndex = -1; // * == -1
-                    } 
-                    else {
-                        nodes[ j ].parentIndex = indexInternal;   
-                    }               
+                if ( strcmp( c1, nodes[ j ].name ) == 0 ) {
+                    index_c1 = j;
+                }
+                if ( strcmp( c2, nodes[ j ].name ) == 0 ) {
+                    index_c2 = j;         
                 }
             }
-            if ( ! isStackEmpty( &parenthesisSt ) ) {
+
+            /* create a relation in the graph */
+            if ( isStackEmpty( &parenthesisSt ) ) {
+                /* stack is empty create a relation between c1 and c2 */
+                graph[ index_c1 ][ index_c2 ] = 1;
+                graph[ index_c2 ][ index_c1 ] = 1; 
+            }
+            else {
+                /* stack is not empty, create a relation with an internal node */
+                graph[ index_c1 ][ indexInternal ] = 1;
+                graph[ indexInternal ][ index_c1 ] = 1;
+                graph[ index_c2 ][ indexInternal ] = 1;
+                graph[ indexInternal ][ index_c2 ] = 1;
+                /* create a name for the internal node and push into names stack */
                 str[ 0 ] = 'i';
                 str[ 1 ] = indexInternal + '0';
                 str[ 2 ] = '\0';
                 strcpy( nodes[ indexInternal ].name, str );
                 push( &namesSt, str );
-                indexInternal++; 
+                indexInternal++;
             }
         }
         i++;

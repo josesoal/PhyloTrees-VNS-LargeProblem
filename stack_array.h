@@ -15,7 +15,8 @@
 /* These constants are used just for the Small-Phylogeny case */
 #define STACK_SIZE 100
 #define MAX_NEWICK_LEN 10 * MAX_STRING_LEN
-#define MAX_NODES 50 /* Max num of nodes (leaves + internal) of a Tree */
+#define MAX_LEAVES 25
+#define MAX_NODES 2 * MAX_LEAVES - 2 /* Max num of nodes (leaves + internal) */
 
 struct stack {
     char s[ STACK_SIZE ][ MAX_STRING_LEN ];
