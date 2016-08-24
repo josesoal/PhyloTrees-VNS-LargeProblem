@@ -20,6 +20,7 @@ tree.o
 uf.o
 vns.o
 stack_array.o
+int_queue.o
 small_phylogeny
 large_phylogeny
 VNS_modifications.txt

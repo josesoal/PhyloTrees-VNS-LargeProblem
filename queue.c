@@ -30,7 +30,8 @@ void enqueue( QueuePtr myQueuePtr, TreeNodePtr valuePtr )
         myQueuePtr->tailPtr = newPtr;
     }
     else {
-        fprintf(stderr, "stderr: No memory available for newPtr in enqueue().\n");
+        fprintf(stderr, 
+            "stderr: No memory available for newPtr in enqueue().\n");
     }
 }
 

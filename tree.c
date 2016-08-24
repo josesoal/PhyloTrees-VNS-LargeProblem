@@ -17,6 +17,7 @@
 #include "iterate_tree.h"
 #include "dcjdist.h"
 #include "stack_array.h" 
+#include "int_queue.h"
 
 static void readGenomes( TreePtr phyloTreePtr, RawDatasetPtr rdatasetPtr );
 static void readGenomesDCJ( TreePtr phyloTreePtr, RawDatasetPtr rdatasetPtr );
@@ -392,6 +393,7 @@ static void readGenomesDCJ( TreePtr phyloTreePtr, RawDatasetPtr rdatasetPtr )
 void createTopologyFromNewickFormat( TreePtr phyloTreePtr, ParametersPtr paramsPtr )
 {
     /* Note: constants MAX_NEWICK_LEN  and MAX_NODES are in stack_array.h*/
+    IntQueue iqueue;
     char newickTree[ MAX_NEWICK_LEN ];
     int numNodes, numLeaves, i, j;
     GNode nodes[ MAX_NODES ]; 
@@ -408,11 +410,64 @@ void createTopologyFromNewickFormat( TreePtr phyloTreePtr, ParametersPtr paramsP
     }
     generateGraphOfNodes( newickTree, nodes, numLeaves, graph );
 
-    /* create tree topology based on the graph of nodes */
-    
-    //Continue here...
-    //Create a queue of ints
-    //Do Breadth-First search
+    /* create tree topology by BFS on graph of nodes */
+    for ( i = 0; i < numNodes; i++ ){
+        nodes[ i ].visited = FALSE;
+    }
+
+    iqueue.headPtr = NULL;
+    iqueue.tailPtr = NULL;
+        
+    /* root node is first leaf */
+    //TODO...
+    nodes[ 0 ].visited = TRUE;
+    for ( i = 0; i < numNodes; i++ ) {
+        if ( graph[ index ][ i ] == 1 ) {
+            /* create right descendant of root */
+            //TODO...
+            break;
+        } 
+    }
+
+    /* first element of queue is right descendant of root */
+    nodes[ i ].visited = TRUE;
+    enqueue_i( &iqueue, i );
+
+    while ( ! isStackEmpty_i( &iqueue ) ) {
+        index = dequeue_i( &iqueue );
+
+        /* create parent */
+        //TODO...
+
+        /* make left and right descendant NULL */
+        //TODO...
+
+        /* create left descendant */
+        for ( i = 0; i < numNodes; i++ ) {
+            if ( graph[ index ][ i ] == 1 && 
+                    nodes[ i ].visited == FALSE ) 
+            {
+                nodes[ i ].visited = TRUE;
+                enqueue_i( &iqueue, i );
+
+                //TODO...
+                break; 
+            }            
+        }
+        /* create right descendant */
+        for ( i = 0; i < numNodes; i++ ) {
+            if ( graph[ index ][ i ] == 1 && 
+                    nodes[ i ].visited == FALSE ) 
+            {
+                nodes[ i ].visited = TRUE;
+                enqueue_i( &iqueue, i );
+
+                //TODO...
+                break; 
+            }            
+        }
+
+    }
 
 }
 
@@ -481,6 +536,11 @@ static int recoverNamesFromNewickFormat( char *newickTree, GNode *nodes )
         i++;
     }
 
+    if ( j > MAX_LEAVES ) {
+        fprintf( stderr, " stderr: increment MAX_LEAVES value!\n" );
+        exit( EXIT_FAILURE );
+    }
+
     return j;
 }
 
@@ -546,6 +606,9 @@ static void generateGraphOfNodes(
                 }
                 if ( strcmp( c2, nodes[ j ].name ) == 0 ) {
                     index_c2 = j;         
+                }
+                if ( index_c1 != -1 && index_c2 != -1 ) {
+                    break;
                 }
             }
 
