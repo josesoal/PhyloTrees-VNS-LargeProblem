@@ -389,11 +389,10 @@ static void readGenomesDCJ( TreePtr phyloTreePtr, RawDatasetPtr rdatasetPtr )
     }//end-for
 }
 
-/* This function is used just for the Small-Phylogny case */
+/* IMPORTANT NOTE: This function is used just for the Small-Phylogny case */
 void createTopologyFromNewickFormat( TreePtr phyloTreePtr, ParametersPtr paramsPtr )
 {
     /* Note: constants MAX_NEWICK_LEN  and MAX_NODES are in stack_array.h*/
-    IntQueue iqueue;
     char newickTree[ MAX_NEWICK_LEN ];
     int numNodes, numLeaves, i, j;
     GNode nodes[ MAX_NODES ]; 
@@ -409,38 +408,61 @@ void createTopologyFromNewickFormat( TreePtr phyloTreePtr, ParametersPtr paramsP
         }
     }
     generateGraphOfNodes( newickTree, nodes, numLeaves, graph );
+    createTopologyFromGraphByBFS( phylotreePtr, nodes, graph, numLeaves );
+}
 
-    /* create tree topology by BFS on graph of nodes */
+static void createTopologyFromGraphByBFS( 
+    TreePtr phyloTreePtr, GNode *nodes, int **graph, int numLeaves )
+{   
+    int i, index, numNodes, numLeaves;
+    IntQueue iqueue;
+    TreeNodePtr node1Ptr, internal1Ptr;
+    
+    iqueue.headPtr = NULL;
+    iqueue.tailPtr = NULL;
+    numNodes = numLeaves + ( numLeaves - 2 );
     for ( i = 0; i < numNodes; i++ ){
         nodes[ i ].visited = FALSE;
     }
-
-    iqueue.headPtr = NULL;
-    iqueue.tailPtr = NULL;
-        
-    /* root node is first leaf */
-    //TODO...
+    
+    /*  first leaf (nodes[0]) is the root node */
     nodes[ 0 ].visited = TRUE;
-    for ( i = 0; i < numNodes; i++ ) {
-        if ( graph[ index ][ i ] == 1 ) {
-            /* create right descendant of root */
-            //TODO...
+    selectLeafNodeByName( phylotreePtr, node1Ptr, nodes[ 0 ].name );
+    phylotreePtr->startingNodePtr = node1Ptr;
+    node1Ptr->ancestorPtr = NULL;
+    node1Ptr->leftDescPtr = NULL;
+    /* create right descendant of root */
+    for ( i = numLeaves; i < numNodes; i++ ) {
+        if ( graph[ 0 ][ i ] == 1 ) {
+            selectInternalNodeByIndex( phylotreePtr, internal1Ptr, i );
+            node1Ptr->rightDescPtr = internal1Ptr;
+            internal1Ptr->ancestorPtr = node1Ptr;
+            /* since nodes[0] is a leaf it only 
+                has one internal adjacent node */
             break;
         } 
     }
 
-    /* first element of queue is right descendant of root */
+    /* the right descendant of root 
+        is the first element of queue */
     nodes[ i ].visited = TRUE;
     enqueue_i( &iqueue, i );
 
     while ( ! isStackEmpty_i( &iqueue ) ) {
         index = dequeue_i( &iqueue );
 
-        /* create parent */
-        //TODO...
+        if ( index < numLeaves ) {
+            //leaf node
+
+            //continue here ...
+        }
+        else {
+            //internal node
+
+        }
 
         /* make left and right descendant NULL */
-        //TODO...
+        
 
         /* create left descendant */
         for ( i = 0; i < numNodes; i++ ) {
@@ -466,11 +488,13 @@ void createTopologyFromNewickFormat( TreePtr phyloTreePtr, ParametersPtr paramsP
                 break; 
             }            
         }
-
-    }
-
+    }//end-while
 }
 
+/* IMPORTANT NOTE: The input is an unrooted phylogenetic tree, where each internal node 
+    has exactly 3 adjacent nodes. Given the above constraints, the newick format 
+    of the tree must be written in a  way that is always considered a pair 
+    between "(" and ")". For example ((A,B),(B,C)) and (A,((B,C),D)) are valid.   */
 static void readNewickFormat( char *newickTree, char *filename )
 {
     FILE *filePtr;
@@ -939,7 +963,8 @@ static void createTreeWith3LeavesRandomly( TreePtr phyloTreePtr )
 }
 
 
-static void selectLeafNodeByName( TreePtr phyloTreePtr, TreeNodePtr *nodePtr, char * name )
+static void selectLeafNodeByName( 
+    TreePtr phyloTreePtr, TreeNodePtr *nodePtr, char * name )
 {
     int i;
     for ( i = 0; i < phyloTreePtr->numberLeaves; i++ ) {
@@ -982,13 +1007,27 @@ static void selectInternalNode( TreePtr phyloTreePtr, TreeNodePtr *nodePtr )
 {
 	int i;
 	for(i=phyloTreePtr->numberLeaves; i<phyloTreePtr->numberNodes; i++){
-		if (phyloTreePtr->nodesPtrArray[i]->avaliable == TRUE){
-			phyloTreePtr->nodesPtrArray[i]->avaliable = FALSE;
+		if (phyloTreePtr->nodesPtrArray[ i ]->avaliable == TRUE){
+			phyloTreePtr->nodesPtrArray[ i ]->avaliable = FALSE;
 			phyloTreePtr->avaliableInternalNodes--;
-			(*nodePtr) = phyloTreePtr->nodesPtrArray[i];
+			(*nodePtr) = phyloTreePtr->nodesPtrArray[ i ];
 			break;
 		}
 	}
+}
+
+/* IMPORTANT NOTE: This function is used just for the Small-Phylogny case */
+static void selectInternalNodeByIndex( 
+    TreePtr phyloTreePtr, TreeNodePtr *nodePtr, int index )
+{
+    if (phyloTreePtr->nodesPtrArray[ index ]->avaliable == TRUE) {
+        phyloTreePtr->avaliableInternalNodes--;
+        (*nodePtr) = phyloTreePtr->nodesPtrArray[ index ];
+    }
+    else {
+        printf(stderr, " stderr: not avaliable internal node by index\n", name); 
+        exit(EXIT_FAILURE); 
+    }
 }
 
 static void selectEdgeRandomly( TreePtr phyloTreePtr, 
