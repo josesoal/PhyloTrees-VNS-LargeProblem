@@ -301,6 +301,8 @@ static void initializeTreeWithDescendants( TreePtr phyloTreePtr,
 {
 
 	//NOT IMPLEMENTED YET !
+	//Continue here ...
+
 
 	int i;
 

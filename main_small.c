@@ -61,12 +61,11 @@ int main( int argc, char **argv )
     allocateMemoryForNodes( &phyloTree, &params );//--from tree.c
     readGenomesFromRawData( &phyloTree, &params, &rdataset );//--from tree.c 
 
-    return 0;
-
     createTopologyFromNewickFormat( &phyloTree, &params );//from tree.c
     score = labelOptimizeTree( &phyloTree, &params );//--iterate tree.c
+    showTreeNewickFormat( phyloTree.startingNodePtr, SHOW_BY_NAME );//from tree.c
 
-    //return 0;
+    return 0;
 
     gettimeofday( &t_fin, NULL );//---------------------------------take final time--
     double timediff = timeval_diff( &t_fin, &t_ini );//--from measure_time.h
@@ -74,6 +73,7 @@ int main( int argc, char **argv )
     /* show results */
     if ( SHOW_JUST_SCORE == TRUE ) printf( "%d %.2f\n", score, timediff );
     //else showResults( &phyloTree, params.distanceType, score, timediff );//--from vns.c
+
 
     /* free memory */
     freeKeys( rdataset.numberGenes, &setkeys );//--from condense.c
