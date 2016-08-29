@@ -31,7 +31,7 @@ void readRawData( char *filename, RawDatasetPtr rdatasetPtr );
 int main( int argc, char **argv )
 {
     struct timeval t_ini, t_fin;
-    gettimeofday( &t_ini, NULL );//---------------------------------take start time--
+    gettimeofday( &t_ini, NULL );//---------------------------take start time--
     
     Tree            phyloTree;
     RawDataset      rdataset;
@@ -61,13 +61,13 @@ int main( int argc, char **argv )
     allocateMemoryForNodes( &phyloTree, &params );//--from tree.c
     readGenomesFromRawData( &phyloTree, &params, &rdataset );//--from tree.c 
 
-    createTopologyFromNewickFormat( &phyloTree, &params );//from tree.c
+    createTopologyFromNewickFormat( &phyloTree, &params );//from tree.c    
     score = labelOptimizeTree( &phyloTree, &params );//--iterate tree.c
     showTreeNewickFormat( phyloTree.startingNodePtr, SHOW_BY_NAME );//from tree.c
 
     return 0;
 
-    gettimeofday( &t_fin, NULL );//---------------------------------take final time--
+    gettimeofday( &t_fin, NULL );//---------------------------take final time--
     double timediff = timeval_diff( &t_fin, &t_ini );//--from measure_time.h
     
     /* show results */
@@ -85,6 +85,7 @@ int main( int argc, char **argv )
 
 void initParameters( ParametersPtr paramsPtr )
 {
+    paramsPtr->problem          = SMALL_PHYLOGENY;
     paramsPtr->seed             = time( NULL);
     paramsPtr->testsetName      = "";
     paramsPtr->newickFile       = "";

@@ -28,6 +28,8 @@ static void initializeTreeUsingDFS( TreePtr phyloTreePtr,
 		TreeNodePtr nodePtr, ParametersPtr paramsPtr );
 static void initializeTreeWithDescendants( TreePtr phyloTreePtr, 
 		TreeNodePtr nodePtr, ParametersPtr paramsPtr, int orientation );
+static void initializeTreeWithDescendantsRandomly( 
+									TreePtr phyloTreePtr, TreeNodePtr nodePtr );
 static TreeNodePtr findNearestNeighbor( TreePtr phyloTreePtr, 
 		TreeNodePtr nodePtr, int idNeighbor1, int idNeighbor2 );
 static void callSolverAndLabelNode( TreePtr phyloTreePtr, TreeNodePtr nodePtr, 
@@ -219,8 +221,14 @@ static int labelOptimizeTree_GreedyCandidatesDCJ(
 	allocateMemoryForNodes( &tempTree, paramsPtr );//--method from tree.c
 
 	if ( initialize == TRUE ) {
-		initializeTreeWithDescendants( 
-			phyloTreePtr, phyloTreePtr->startingNodePtr->rightDescPtr, paramsPtr, GO_LEFT );
+		if ( paramsPtr->problem == LARGE_PHYLOGENY ) {
+			initializeTreeWithDescendants( phyloTreePtr, 
+			phyloTreePtr->startingNodePtr->rightDescPtr, paramsPtr, GO_LEFT );
+		}
+		else { // SMALL_PHYLOGENY
+			initializeTreeWithDescendantsRandomly( 
+				phyloTreePtr, phyloTreePtr->startingNodePtr->rightDescPtr );
+		}
 	}
 
 	improve = TRUE;
@@ -296,57 +304,56 @@ static void initializeTreeWithDescendants( TreePtr phyloTreePtr,
 	}
 }
 
-/*static*/ void initializeTreeWithDescendantsRandomly( TreePtr phyloTreePtr, 
-		TreeNodePtr nodePtr, ParametersPtr paramsPtr, int orientation )
+static void initializeTreeWithDescendantsRandomly( 
+									TreePtr phyloTreePtr, TreeNodePtr nodePtr )
 {
-
-	//NOT IMPLEMENTED YET !
-	//Continue here ...
-
-
-	int i;
+	int i, p, orientation;
 
 	if ( nodePtr->type == INTERNAL_NODE ) {
-		if ( orientation == GO_LEFT ) {
-			initializeTreeWithDescendants( phyloTreePtr, nodePtr->leftDescPtr, paramsPtr, GO_RIGHT );
-			initializeTreeWithDescendants( phyloTreePtr, nodePtr->rightDescPtr, paramsPtr, GO_LEFT );
-		}
-		else { // orientation == GO_RIGHT
-			initializeTreeWithDescendants( phyloTreePtr, nodePtr->leftDescPtr, paramsPtr, GO_LEFT );
-			initializeTreeWithDescendants( phyloTreePtr, nodePtr->rightDescPtr, paramsPtr, GO_RIGHT );
-		}
-		//p = irand(2); // 0 <= p <= 1
+		initializeTreeWithDescendantsRandomly( phyloTreePtr, nodePtr->leftDescPtr );
+		initializeTreeWithDescendantsRandomly( phyloTreePtr, nodePtr->rightDescPtr );
+		
+		p = irand(2); // 0 <= p <= 1
+		orientation = p == 0 ? GO_LEFT : GO_RIGHT;
 
 		if ( orientation == GO_LEFT ) {
 			/* copy left descendant */
 			nodePtr->numPointsDCJ = nodePtr->leftDescPtr->numPointsDCJ;
 			for ( i = 0; i < nodePtr->numPointsDCJ; i++ ) {
-				nodePtr->genomeDCJ[i]->x = nodePtr->leftDescPtr->genomeDCJ[i]->x;
-				nodePtr->genomeDCJ[i]->y = nodePtr->leftDescPtr->genomeDCJ[i]->y;
-				nodePtr->genomeDCJ[i]->type = nodePtr->leftDescPtr->genomeDCJ[i]->type;
+				nodePtr->genomeDCJ[ i ]->x = 
+									nodePtr->leftDescPtr->genomeDCJ[ i ]->x;
+				nodePtr->genomeDCJ[ i ]->y = 
+									nodePtr->leftDescPtr->genomeDCJ[ i ]->y;
+				nodePtr->genomeDCJ[ i ]->type = 
+									nodePtr->leftDescPtr->genomeDCJ[ i ]->type;
 			}
 
 			/* copy inverse */
 			for ( i = 0; i < 2 * phyloTreePtr->numberGenes; i++ ) {
-				nodePtr->inverseDCJ[ i ] = nodePtr->leftDescPtr->inverseDCJ[ i ];
+				nodePtr->inverseDCJ[ i ] = 
+									nodePtr->leftDescPtr->inverseDCJ[ i ];
 			}
 		}
 		else { // orientation == GO_RIGHT
 			/* copy right descendant */
 			nodePtr->numPointsDCJ = nodePtr->rightDescPtr->numPointsDCJ;
 			for ( i = 0; i < nodePtr->numPointsDCJ; i++ ) {
-				nodePtr->genomeDCJ[i]->x = nodePtr->rightDescPtr->genomeDCJ[i]->x;
-				nodePtr->genomeDCJ[i]->y = nodePtr->rightDescPtr->genomeDCJ[i]->y;
-				nodePtr->genomeDCJ[i]->type = nodePtr->rightDescPtr->genomeDCJ[i]->type;
+				nodePtr->genomeDCJ[ i ]->x = 
+								nodePtr->rightDescPtr->genomeDCJ[ i ]->x;
+				nodePtr->genomeDCJ[ i ]->y = 
+								nodePtr->rightDescPtr->genomeDCJ[ i ]->y;
+				nodePtr->genomeDCJ[ i ]->type = 
+								nodePtr->rightDescPtr->genomeDCJ[ i ]->type;
 			}
 
 			/* copy inverse */
 			for ( i = 0; i < 2 * phyloTreePtr->numberGenes; i++ ) {
-				nodePtr->inverseDCJ[ i ] = nodePtr->rightDescPtr->inverseDCJ[ i ];
+				nodePtr->inverseDCJ[ i ] = 
+								nodePtr->rightDescPtr->inverseDCJ[ i ];
 			}
 		}
 
-	}
+	}//end-if
 }
 
 /* NOTE: in the first call of this procedure, the second argument 

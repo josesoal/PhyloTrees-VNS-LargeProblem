@@ -17,7 +17,7 @@ double drand (void)
 }
 
 /* return integer number in the range [0, x) */
-/* Ex: irand(2) returns intergers 0 or 1 */
+/* Ex: irand(2) returns integers 0 or 1 */
 unsigned int irand(unsigned int x)
 {
 	return (unsigned int) ((x) * drand ());	

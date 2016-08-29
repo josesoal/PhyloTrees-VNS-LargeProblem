@@ -417,100 +417,9 @@ void createTopologyFromNewickFormat( TreePtr phyloTreePtr, ParametersPtr paramsP
             graph[ i ][ j ] = 0;
         }
     }
+
     generateGraphOfNodes( newickTree, nodes, numLeaves, graph );
     createTopologyFromGraphByBFS( phyloTreePtr, nodes, graph, numLeaves );
-}
-
-static void createTopologyFromGraphByBFS( 
-                        TreePtr phyloTreePtr, GNode *nodes, 
-                        int graph[ MAX_NODES ][ MAX_NODES ], int numLeaves )
-{   
-    int i, j, index, numNodes;
-    IntQueue iqueue;
-    TreeNodePtr nodePtr, node1Ptr, node2Ptr, internalPtr;
-    
-    iqueue.headPtr = NULL;
-    iqueue.tailPtr = NULL;
-    numNodes = numLeaves + ( numLeaves - 2 );
-    for ( i = 0; i < numNodes; i++ ){
-        nodes[ i ].visited = FALSE;
-    }
-    
-    /*  first leaf (nodes[0]) is the root node */
-    nodes[ 0 ].visited = TRUE;
-    selectLeafNodeByName( phyloTreePtr, &nodePtr, nodes[ 0 ].name );
-    phyloTreePtr->startingNodePtr = nodePtr;
-    nodePtr->ancestorPtr = NULL;
-    nodePtr->leftDescPtr = NULL;
-    /* create right descendant of root */
-    for ( i = numLeaves; i < numNodes; i++ ) {
-        if ( graph[ 0 ][ i ] == 1 ) {
-            selectInternalNodeByIndex( phyloTreePtr, &internalPtr, i );
-            nodePtr->rightDescPtr = internalPtr;
-            internalPtr->ancestorPtr = nodePtr;
-            /* since nodes[0] is a leaf it only 
-                has one internal adjacent node */
-            break;
-        } 
-    }
-
-    /* the right descendant of root is the first element of queue */
-    nodes[ i ].visited = TRUE;
-    enqueue_i( &iqueue, i );
-
-    while ( ! isEmpty_i( &iqueue ) ) {
-        index = dequeue_i( &iqueue );
-
-        /* get the pointer of the node */
-        if ( index < numLeaves ) {
-            nodePtr = getLeafNodePointerByName( 
-                                phyloTreePtr, nodes[ index ].name );
-        }
-        else {
-            nodePtr = getInternalNodePointerByIndex( phyloTreePtr, index );
-        }
-        /* make left and right descendant NULL */
-        nodePtr->leftDescPtr = NULL;
-        nodePtr->rightDescPtr = NULL;
-        /* create left descendant if exists */
-        for ( i = 0; i < numNodes; i++ ) {
-            if ( graph[ index ][ i ] == 1 && nodes[ i ].visited == FALSE ) 
-            {
-                if ( i < numLeaves ) {
-                    selectLeafNodeByName( 
-                        phyloTreePtr, &node1Ptr, nodes[ i ].name );
-                }
-                else {
-                    selectInternalNodeByIndex( phyloTreePtr, &node1Ptr, i );
-                }
-                nodePtr->leftDescPtr = node1Ptr;
-                node1Ptr->ancestorPtr = nodePtr;
-
-                nodes[ i ].visited = TRUE;
-                enqueue_i( &iqueue, i );
-                break; 
-            }            
-        }
-        /* create right descendant if exists */
-        for ( j = i + 1; j < numNodes; j++ ) {
-            if ( graph[ index ][ j ] == 1 && nodes[ j ].visited == FALSE ) 
-            {
-                if ( j < numLeaves ) {
-                    selectLeafNodeByName( 
-                        phyloTreePtr, &node2Ptr, nodes[ j ].name );
-                }
-                else {
-                    selectInternalNodeByIndex( phyloTreePtr, &node2Ptr, j );
-                }
-                nodePtr->rightDescPtr = node2Ptr;
-                node2Ptr->ancestorPtr = nodePtr;
-
-                nodes[ j ].visited = TRUE;
-                enqueue_i( &iqueue, j );
-                break; 
-            }            
-        }
-    }//end-while
 }
 
 /* IMPORTANT NOTE: The input is an unrooted phylogenetic tree, where 
@@ -604,7 +513,9 @@ static void generateGraphOfNodes(
     numNodes = numLeaves + ( numLeaves - 2 ); /* leaves + internal nodes */
     indexInternal = numLeaves; /* internal node starts at numLeaves */
     len = strlen( newickTree );
-
+    parenthesisSt.top = -1; /* init empty stack */
+    namesSt.top = -1; /* init empty stack */
+ 
     i = 0; 
     k = 0;
     buffer[ 0 ] = newickTree[ i ];
@@ -634,6 +545,7 @@ static void generateGraphOfNodes(
             buffer[ k ] = newickTree[ i ];
             k++;
         }
+       
         /* verify if parenthesis stack have "(" and ")" */
         char str[ 3 ];
         if ( strcmp( parenthesisSt.s[ parenthesisSt.top - 1 ], "(" ) == 0 
@@ -682,6 +594,98 @@ static void generateGraphOfNodes(
         }
         i++;
     }
+}
+
+static void createTopologyFromGraphByBFS( 
+                        TreePtr phyloTreePtr, GNode *nodes, 
+                        int graph[ MAX_NODES ][ MAX_NODES ], int numLeaves )
+{   
+    int i, j, index, numNodes;
+    IntQueue iqueue;
+    TreeNodePtr nodePtr, node1Ptr, node2Ptr, internalPtr;
+    
+    iqueue.headPtr = NULL;
+    iqueue.tailPtr = NULL;
+    numNodes = numLeaves + ( numLeaves - 2 );
+    for ( i = 0; i < numNodes; i++ ){
+        nodes[ i ].visited = FALSE;
+    }
+    
+    /*  first leaf (nodes[0]) is the root node */
+    nodes[ 0 ].visited = TRUE;
+    selectLeafNodeByName( phyloTreePtr, &nodePtr, nodes[ 0 ].name );
+    phyloTreePtr->startingNodePtr = nodePtr;
+    nodePtr->ancestorPtr = NULL;
+    nodePtr->leftDescPtr = NULL;
+    /* create right descendant of root */
+    for ( i = numLeaves; i < numNodes; i++ ) {
+        if ( graph[ 0 ][ i ] == 1 ) {
+            selectInternalNodeByIndex( phyloTreePtr, &internalPtr, i );
+            nodePtr->rightDescPtr = internalPtr;
+            internalPtr->ancestorPtr = nodePtr;
+            /* since nodes[0] is a leaf it only 
+                has one internal adjacent node */
+            break;
+        } 
+    }
+
+    /* the right descendant of root is the first element of queue */
+    nodes[ i ].visited = TRUE;
+    enqueue_i( &iqueue, i );
+
+    while ( ! isEmpty_i( &iqueue ) ) {
+        index = dequeue_i( &iqueue );
+
+        /* get the pointer of the node */
+        if ( index < numLeaves ) {
+            nodePtr = getLeafNodePointerByName( 
+                                phyloTreePtr, nodes[ index ].name );
+        }
+        else {
+            nodePtr = getInternalNodePointerByIndex( phyloTreePtr, index );
+        }
+        /* make left and right descendant NULL */
+        nodePtr->leftDescPtr = NULL;
+        nodePtr->rightDescPtr = NULL;
+        /* create left descendant if exists */
+        for ( i = 0; i < numNodes; i++ ) {
+            if ( graph[ index ][ i ] == 1 && nodes[ i ].visited == FALSE ) 
+            {
+                if ( i < numLeaves ) {
+                    selectLeafNodeByName( 
+                        phyloTreePtr, &node1Ptr, nodes[ i ].name );
+                }
+                else {
+                    selectInternalNodeByIndex( phyloTreePtr, &node1Ptr, i );
+                }
+                nodePtr->leftDescPtr = node1Ptr;
+                node1Ptr->ancestorPtr = nodePtr;
+
+                nodes[ i ].visited = TRUE;
+                enqueue_i( &iqueue, i );
+                break; 
+            }            
+        }
+        /* create right descendant if exists */
+        for ( j = i + 1; j < numNodes; j++ ) {
+            if ( graph[ index ][ j ] == 1 && nodes[ j ].visited == FALSE ) 
+            {
+                if ( j < numLeaves ) {
+                    selectLeafNodeByName( 
+                        phyloTreePtr, &node2Ptr, nodes[ j ].name );
+                }
+                else {
+                    selectInternalNodeByIndex( phyloTreePtr, &node2Ptr, j );
+                }
+                nodePtr->rightDescPtr = node2Ptr;
+                node2Ptr->ancestorPtr = nodePtr;
+
+                nodes[ j ].visited = TRUE;
+                enqueue_i( &iqueue, j );
+                break; 
+            }            
+        }
+    }//end-while
 }
 
 int createInitialTreeTopology( TreePtr phyloTreePtr, ParametersPtr paramsPtr )

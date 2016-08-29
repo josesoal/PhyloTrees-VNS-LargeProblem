@@ -24,6 +24,8 @@
 #define ADJACENCY		0
 #define TELOMERE 		1
 
+#define SMALL_PHYLOGENY 0
+#define LARGE_PHYLOGENY 1
 #define GO_LEFT			0
 #define GO_RIGHT		1
 #define DEBUG 			TRUE		/* TRUE for showing the process */
@@ -39,6 +41,7 @@ enum optimizer {BLANCHETTE, KOVAC, GREEDY_CANDIDATES};
 enum penalty {MULTIPLE_CH, MULT_CIRCULAR_CH, LIN_CH_MULT_CIRC_CH, COMB_LIN_CIRC_CH};
 
 struct parameters {
+	int 					problem; /* small or large phylogeny problem */
 	unsigned int 			seed;
 	char 			       	*testsetName;
 	char					*newickFile;

@@ -86,6 +86,7 @@ int main( int argc, char **argv )
 
 void initParameters( ParametersPtr paramsPtr )
 {
+    paramsPtr->problem          = LARGE_PHYLOGENY;
     paramsPtr->seed             = time( NULL);
     paramsPtr->testsetName      = "";
     paramsPtr->unichromosomes   = TRUE;

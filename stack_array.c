@@ -38,5 +38,7 @@ void show( StackPtr stackPtr ) {
     }
 }
 
-//Stack st1;
-//st1.top = -1;
+/* Before using this data structure init a empty stack:
+    Stack st1;
+    st1.top = -1;
+*/
