@@ -29,7 +29,7 @@
 #define GO_LEFT			0
 #define GO_RIGHT		1
 #define DEBUG 			TRUE		/* TRUE for showing the process */
-#define SHOW_JUST_SCORE	TRUE 		/* TRUE for showing just a single number (score) */
+#define SHOW_JUST_SCORE	FALSE 		/* TRUE for showing just a single number (score) */
 
 enum distances {INVERSION_DIST, BREAKPOINT_DIST, DCJ_DIST};
 enum medianSolvers {COALESTSP, 			/* Approximate TSP solver */

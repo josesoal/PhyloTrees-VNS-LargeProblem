@@ -23,11 +23,11 @@
 
 #include "dcjdist.h"
 
-void initParameters( ParametersPtr paramsPtr);
-void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr );
-int readNumberGenomes( char *filename );
-void readNumberGenesAndChromosomes( char *filename, RawDatasetPtr rdatasetPtr );
-void readRawData( char *filename, RawDatasetPtr rdatasetPtr );
+static void initParameters( ParametersPtr paramsPtr);
+static void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr );
+static int readNumberGenomes( char *filename );
+static void readNumberGenesAndChromosomes( char *filename, RawDatasetPtr rdatasetPtr );
+static void readRawData( char *filename, RawDatasetPtr rdatasetPtr );
 
 int main( int argc, char **argv )
 {
@@ -84,7 +84,7 @@ int main( int argc, char **argv )
 	return 0;
 }
 
-void initParameters( ParametersPtr paramsPtr )
+static void initParameters( ParametersPtr paramsPtr )
 {
     paramsPtr->problem          = LARGE_PHYLOGENY;
     paramsPtr->seed             = time( NULL);
@@ -102,7 +102,7 @@ void initParameters( ParametersPtr paramsPtr )
     //opt = GREEDY_CANDIDATES (rev dist); // is slow, "almost" the same results as BLANCHETTE
 }
 
-void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
+static void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
 {   
     int i;
     char option;
@@ -212,7 +212,7 @@ void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
     }
 }
 
-int readNumberGenomes( char *filename )
+static int readNumberGenomes( char *filename )
 {   
     FILE *filePtr;
     int c; /* use int (not char) for the EOF */
@@ -266,7 +266,7 @@ int readNumberGenomes( char *filename )
 
 /* NOTE: before calling this function initialize with zero: numberGenes, 
         and elements of numberChromosomesArray */
-void readNumberGenesAndChromosomes( char *filename, RawDatasetPtr rdatasetPtr )  
+static void readNumberGenesAndChromosomes( char *filename, RawDatasetPtr rdatasetPtr )  
 {
     FILE *filePtr;
     int c, lastc; /* use int (not char) for the EOF */
@@ -361,7 +361,7 @@ void readNumberGenesAndChromosomes( char *filename, RawDatasetPtr rdatasetPtr )
 }
 
 /* Read "Raw" genomes, that is, genomes before condensation */
-void readRawData( char *filename, RawDatasetPtr rdatasetPtr )
+static void readRawData( char *filename, RawDatasetPtr rdatasetPtr )
 {
     FILE *filePtr;
     int c; /* use int (not char) for the EOF */

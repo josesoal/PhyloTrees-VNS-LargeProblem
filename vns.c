@@ -780,7 +780,8 @@ int exhaustiveSubtreeScramble(TreePtr phyloTreePtr, ParametersPtr paramsPtr, int
 
 }
 
-void showResults(TreePtr phyloTreePtr, enum distances dist, int score, double timediff)
+void showResults( TreePtr phyloTreePtr, 
+						enum distances dist, int score, double timediff )
 {
 
 	printf("-----------------------------\n");
@@ -795,8 +796,8 @@ void showResults(TreePtr phyloTreePtr, enum distances dist, int score, double ti
     else
     	printf("Breakpoint Score\t: %d\n", score);
     printf("Total time\t\t: %.2f seconds\n", timediff);
-    showTreeNewickFormat(phyloTreePtr->startingNodePtr, SHOW_BY_ID);//--method from tree.c
-    showTreeNewickFormat(phyloTreePtr->startingNodePtr, SHOW_BY_NAME);//--method from tree.c
+    showTreeNewickFormat(phyloTreePtr->startingNodePtr, SHOW_BY_ID);//--from tree.c
+    showTreeNewickFormat(phyloTreePtr->startingNodePtr, SHOW_BY_NAME);//--from tree.c
     //showNodesArray(phyloTreePtr);//--method from tree.c
     writeNewickFormatToFile( "newick_tree.txt", phyloTreePtr->startingNodePtr, SHOW_BY_NAME );//--from tree.c 
 }

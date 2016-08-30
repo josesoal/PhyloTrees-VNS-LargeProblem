@@ -1,1 +1,0 @@
-(Genome1,(Genome2,(Genome3,Genome4)))

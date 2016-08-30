@@ -40,5 +40,7 @@ void writeNewickFormatToFile( char *filename, TreeNodePtr currentNodePtr, int op
 void showNode( TreePtr phyloTreePtr, TreeNodePtr nodePtr );
 void showNodesArray( TreePtr phyloTreePtr );
 void showGenomes( TreePtr phyloTreePtr, ParametersPtr paramsPtr );
+void showResultsSmallPhylogeny( TreePtr phyloTreePtr, 
+                        enum distances dist, int score, double timediff );
 
 #endif /* TREE_H_ */

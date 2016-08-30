@@ -296,7 +296,6 @@ int candidatePenalized( CandidatePtr candPtr, ParametersPtr paramsPtr )
 			exit( EXIT_FAILURE );
 	}
 
-	if ( numLinearChromosomes > 0 ) printf("Lch=%d,",numLinearChromosomes); //--
 	return FALSE;
 }
 

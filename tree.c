@@ -1455,7 +1455,24 @@ void showGenomes( TreePtr phyloTreePtr, ParametersPtr paramsPtr )
     } 
 }
 
-
-
-
-
+/* ---------------------------------------------------------------------- */
+/* IMPORTANT NOTE: This function is used just for the Small-Phylogny case */
+void showResultsSmallPhylogeny( TreePtr phyloTreePtr, 
+                        enum distances dist, int score, double timediff )
+{
+    printf("-----------------------------\n");
+    printf("Program for Small Phylogeny\n");
+    printf("-----------------------------\n");
+    printf("Number of genomes\t: %d\n", phyloTreePtr->numberLeaves);
+    printf("Number of genes\t\t: %d\n", phyloTreePtr->numberGenes);
+    if ( dist == INVERSION_DIST )
+        printf("Reversal Score\t\t: %d\n", score);
+    else if ( dist == DCJ_DIST )
+        printf("DCJ Score\t\t: %d\n", score);
+    else
+        printf("Breakpoint Score\t: %d\n", score);
+    printf("Total time\t\t: %.2f seconds\n", timediff);
+    showTreeNewickFormat(phyloTreePtr->startingNodePtr, SHOW_BY_ID);//--from tree.c
+    showTreeNewickFormat(phyloTreePtr->startingNodePtr, SHOW_BY_NAME);//--from tree.c
+    //showNodesArray(phyloTreePtr);//--method from tree.c
+}
