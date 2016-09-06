@@ -189,7 +189,7 @@ void copyTreeInto( TreePtr phyloTree1Ptr,
         	strcpy( phyloTree1Ptr->nodesPtrArray[ i ]->organism, 
                         phyloTree2Ptr->nodesPtrArray[ i ]->organism );
     	}
-        //Note:type is not copied
+        //Note:type is not copied, it is already setted in nodes mem alloc.
     	phyloTree1Ptr->nodesPtrArray[ i ]->edgeWeight    = phyloTree2Ptr->nodesPtrArray[ i ]->edgeWeight;
     	phyloTree1Ptr->nodesPtrArray[ i ]->avaliable     = phyloTree2Ptr->nodesPtrArray[ i ]->avaliable;
     	phyloTree1Ptr->nodesPtrArray[ i ]->extremity     = phyloTree2Ptr->nodesPtrArray[ i ]->extremity; 

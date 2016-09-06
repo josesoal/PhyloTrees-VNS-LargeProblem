@@ -73,8 +73,8 @@ struct candidate {
 	PointDCJPtr		*genomeDCJ;
 	int 			*inverseDCJ;
 	int 			numPointsDCJ;
-	int 			numLinearCh; /* number of linear chromosomes */
-	int 			numCircularCh; /* number of circular chromosomes */	 
+	//int 			numLinearCh; /* number of linear chromosomes */
+	//int 			numCircularCh; /* number of circular chromosomes */	 
 };
 typedef struct candidate Candidate;
 typedef Candidate 		*CandidatePtr;
