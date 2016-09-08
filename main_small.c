@@ -63,6 +63,7 @@ int main( int argc, char **argv )
 
     createTopologyFromNewickFormat( &phyloTree, &params );//from tree.c    
     score = labelOptimizeTree( &phyloTree, &params );//--iterate tree.c
+
     //showTreeNewickFormat( phyloTree.startingNodePtr, SHOW_BY_NAME );//from tree.c
     gettimeofday( &t_fin, NULL );//---------------------------take final time--
     double timediff = timeval_diff( &t_fin, &t_ini );//--from measure_time.h
@@ -115,6 +116,10 @@ static void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
         fprintf( stdout, "\t\t -f filename\n" );
         fprintf( stdout, "\t-k : topology in Newick format\n" );
         fprintf( stdout, "\t\t -k filename\n" );
+        fprintf( stdout, "\t-o : optimization method for DCJ [optional]\n" );
+        fprintf( stdout, "\t\t -o 0 : Greedy Candidates opt.\n" );
+        fprintf( stdout, "\t\t -o 1 : Kovac opt.\n" );
+        fprintf( stdout, "\t\t( Greedy Candidates opt is used by default if option is omitted)\n" );
         fprintf( stdout, "\t-m : use multiple-chromosomes [optional]\n" );
         fprintf( stdout, "\t\t(single-chromosomes is default if option is omitted)\n" );
         fprintf( stdout, "\t-s : seed [optional]\n" );
@@ -148,7 +153,8 @@ static void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
                         paramsPtr->opt = GREEDY_CANDIDATES;
                     }
                     else {
-                        fprintf( stderr, " stderr: incorrect distance (-d).\n" );
+                        fprintf( stderr, 
+                            " stderr: incorrect distance (-d).\n" );
                         exit( EXIT_FAILURE );
                     }
                     break;
@@ -157,6 +163,19 @@ static void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
                     break;
                 case 'k':
                     paramsPtr->newickFile = argv[ i + 1 ]; 
+                    break;
+                case 'o':
+                    if ( strcmp( argv[ i + 1 ], "0" ) == 0 ) {
+                        paramsPtr->opt = GREEDY_CANDIDATES;
+                    }
+                    else if ( strcmp( argv[ i + 1 ], "1" ) == 0 ) {
+                        paramsPtr->opt = KOVAC;
+                    }
+                    else {
+                        fprintf( stderr, 
+                            " stderr: incorrect opt method (-o).\n" );
+                        exit( EXIT_FAILURE ); 
+                    }
                     break;
                 case 'm':
                     paramsPtr->unichromosomes = FALSE;
@@ -168,7 +187,7 @@ static void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
                     if ( strcmp( argv[ i + 1 ], "0" ) == 0 ) {
                         paramsPtr->penaltyType = MULTIPLE_CH;
                     }
-                    if ( strcmp( argv[ i + 1 ], "1" ) == 0 ) {
+                    else if ( strcmp( argv[ i + 1 ], "1" ) == 0 ) {
                         paramsPtr->penaltyType = MULT_CIRCULAR_CH;
                     }
                     else if ( strcmp( argv[ i + 1 ], "2" ) == 0 ) {
@@ -178,12 +197,14 @@ static void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
                         paramsPtr->penaltyType = COMB_LIN_CIRC_CH;
                     }
                     else {
-                        fprintf( stderr, " stderr: incorrect penalty type (-z).\n" );
+                        fprintf( stderr, 
+                            " stderr: incorrect penalty type (-z).\n" );
                         exit( EXIT_FAILURE ); 
                     }
                     break;
                 default:
-                    fprintf( stderr, " stderr: incorrect option: %c.\n", option );
+                    fprintf( stderr, 
+                        " stderr: incorrect option: %c.\n", option );
                     exit( EXIT_FAILURE );
             }
             i = i + 2;  

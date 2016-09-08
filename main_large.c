@@ -171,7 +171,7 @@ static void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
                     if ( strcmp( argv[ i + 1 ], "0" ) == 0 ) {
                         paramsPtr->penaltyType = MULTIPLE_CH;
                     }
-                    if ( strcmp( argv[ i + 1 ], "1" ) == 0 ) {
+                    else if ( strcmp( argv[ i + 1 ], "1" ) == 0 ) {
                         paramsPtr->penaltyType = MULT_CIRCULAR_CH;
                     }
                     else if ( strcmp( argv[ i + 1 ], "2" ) == 0 ) {
