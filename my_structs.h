@@ -38,20 +38,20 @@ enum medianSolvers {COALESTSP, 			/* Approximate TSP solver */
                     };
 enum initTreeMethod {R_LEAF_R_EDGE, R_LEAF_1BEST_EDGE};
 enum optimizer {BLANCHETTE, KOVAC, HERENCSAR, GREEDY_CANDIDATES};
-enum penalty {MULTIPLE_CH, MULT_CIRCULAR_CH, LIN_CH_MULT_CIRC_CH, COMB_LIN_CIRC_CH};
+enum preferredGenome { ANY, ONE_CIRCULAR_CH, 
+	ONE_OR_MORE_LINEAR_CH, ONE_CIRCULAR_or_ONE_OR_MORE_LINEAR_CH };
 
 struct parameters {
-	int 					problem; /* small or large phylogeny problem */
+	int 					problem; 		/* small or large phylogeny problem */
 	unsigned int 			seed;
 	char 			       	*testsetName;
 	char					*newickFile;
-	int 					unichromosomes; /* false if using multichromosomes genomes */
     int                    	circular; 		/* true if the dataset genomes are circular */
     enum distances         	distanceType;
     enum medianSolvers     	solver;
     int                    	useOutgroup;
     char                   	*outgroup;
-    enum penalty 			penaltyType;
+    enum preferredGenome	preferredType;
     enum initTreeMethod    	initMethod;
     enum optimizer         	opt;             /* optimizer for small phylogeny problem */
 };

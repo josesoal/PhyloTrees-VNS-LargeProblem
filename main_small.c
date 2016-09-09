@@ -22,7 +22,7 @@
 
 #include "dcjdist.h"
 
-static void initParameters( ParametersPtr paramsPtr);
+static void initParameters( ParametersPtr paramsPtr );
 static void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr );
 static int readNumberGenomes( char *filename );
 static void readNumberGenesAndChromosomes( char *filename, RawDatasetPtr rdatasetPtr );
@@ -89,13 +89,12 @@ static void initParameters( ParametersPtr paramsPtr )
     paramsPtr->seed             = time( NULL);
     paramsPtr->testsetName      = "";
     paramsPtr->newickFile       = "";
-    paramsPtr->unichromosomes   = TRUE;
     paramsPtr->circular         = TRUE; //Not used here. Must be updated in readGenome() - tree.c
     paramsPtr->distanceType     = INVERSION_DIST;
     paramsPtr->solver           = CAPRARA_INV_MEDIAN;
     paramsPtr->useOutgroup      = FALSE;
     paramsPtr->outgroup         = "";
-    paramsPtr->penaltyType      = -1;
+    paramsPtr->preferredType    = ANY;
     paramsPtr->initMethod       = R_LEAF_1BEST_EDGE;
     paramsPtr->opt              = BLANCHETTE; // (*)
     //opt = KOVAC (rev dist); //super slow, not good results (worst than BLANCHETTE)
@@ -120,17 +119,15 @@ static void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
         fprintf( stdout, "\t\t -o 0 : Greedy Candidates opt.\n" );
         fprintf( stdout, "\t\t -o 1 : Kovac opt.\n" );
         fprintf( stdout, "\t\t( Greedy Candidates opt is used by default if option is omitted)\n" );
-        fprintf( stdout, "\t-m : use multiple-chromosomes [optional]\n" );
-        fprintf( stdout, "\t\t(single-chromosomes is default if option is omitted)\n" );
         fprintf( stdout, "\t-s : seed [optional]\n" );
         fprintf( stdout, "\t\t -s some_seed\n" );
         fprintf( stdout, "\t\t(seed taken from system time by default if option is omitted)\n" );
-        fprintf( stdout, "\t-z : penalize dcj [optional]\n" );
-        fprintf( stdout, "\t\t -z 0 : penalize multiple chromosomes\n" );
-        fprintf( stdout, "\t\t -z 1 : penalize multiple circular chromosomes\n" );
-        fprintf( stdout, "\t\t -z 2 : penalize linear chrs., and multiple circular chrs.\n" );    
-        fprintf( stdout, "\t\t -z 3 : penalize combinations of linear and circular chrs.\n" );
-        fprintf( stdout, "\t\t(penalize is not used by default if option is omitted)\n\n" );
+        fprintf( stdout, "\t-r : preferred dcj genome structure [optional]\n" );
+        fprintf( stdout, "\t\t -r 0 : any genome structure\n" );
+        fprintf( stdout, "\t\t -r 1 : one circular chromosome\n" );
+        fprintf( stdout, "\t\t -r 2 : one or more linear chromosomes\n" );    
+        fprintf( stdout, "\t\t -r 3 : one circular, or one or more linear chromosomes\n" );
+        fprintf( stdout, "\t\t( -r 0 is used by default if option is omitted)\n\n" );
         
         //fprintf( stdout, " using the default testset: testsets/camp05_cond\n" );
         //fprintf( stdout, " try other >> ./main -t testsets/camp07_cond\n" );
@@ -177,28 +174,26 @@ static void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
                         exit( EXIT_FAILURE ); 
                     }
                     break;
-                case 'm':
-                    paramsPtr->unichromosomes = FALSE;
-                    break;
                 case 's':
                     paramsPtr->seed = atoi( argv[ i + 1 ] );
                     break;
-                case 'z':
+                case 'r':
                     if ( strcmp( argv[ i + 1 ], "0" ) == 0 ) {
-                        paramsPtr->penaltyType = MULTIPLE_CH;
+                        paramsPtr->preferredType = ANY;
                     }
                     else if ( strcmp( argv[ i + 1 ], "1" ) == 0 ) {
-                        paramsPtr->penaltyType = MULT_CIRCULAR_CH;
+                        paramsPtr->preferredType = ONE_CIRCULAR_CH;
                     }
                     else if ( strcmp( argv[ i + 1 ], "2" ) == 0 ) {
-                        paramsPtr->penaltyType = LIN_CH_MULT_CIRC_CH;
+                        paramsPtr->preferredType = ONE_OR_MORE_LINEAR_CH;
                     }
                     else if ( strcmp( argv[ i + 1 ], "3" ) == 0 ) {
-                        paramsPtr->penaltyType = COMB_LIN_CIRC_CH;
+                        paramsPtr->preferredType = 
+                            ONE_CIRCULAR_or_ONE_OR_MORE_LINEAR_CH;
                     }
                     else {
                         fprintf( stderr, 
-                            " stderr: incorrect penalty type (-z).\n" );
+                            " stderr: incorrect penalty type (-r).\n" );
                         exit( EXIT_FAILURE ); 
                     }
                     break;
@@ -217,15 +212,10 @@ static void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
 
     /* discard some undesired cases */
     if ( paramsPtr->distanceType == INVERSION_DIST && 
-            paramsPtr->unichromosomes == FALSE ) {
-        fprintf( stderr, " stderr: the program does not support using the reversal" );
-        fprintf( stderr, " distance and multiple-chromosome genomes.\n" );
-        exit( EXIT_FAILURE );
-    }
-    if ( paramsPtr->distanceType == INVERSION_DIST && 
-            paramsPtr->penaltyType != -1 ) {
-        fprintf( stderr, " stderr: the program does not support using the reversal" );
-        fprintf( stderr, " distance and penalize multiple chromosomes.\n" );
+            paramsPtr->preferredType > 0 ) {
+        fprintf( stderr, 
+            " stderr: the program does not support using the reversal" );
+        fprintf( stderr, " distance and a preferred genome structure.\n" );
         exit( EXIT_FAILURE );
     }
 }

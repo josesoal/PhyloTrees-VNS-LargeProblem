@@ -14,8 +14,9 @@
 #include "my_structs.h"
 #include "dcjdist.h"
 
-static void countLinearCircularChromosomes( CandidatePtr candPtr, 
-	ParametersPtr paramsPtr, int *numLinearChromosomes, int *numCircularChromosomes );
+static void countLinearCircularChromosomes( PointDCJPtr *genomeDCJ, 
+				int *inverseDCJ, int numPointsDCJ, 
+				int *numLinearChromosomes, int *numCircularChromosomes );
 
 int DCJdistance( PointDCJPtr *genome1DCJ, PointDCJPtr *genome2DCJ, 
 				int *inverseGenome1, int *inverseGenome2, 
@@ -257,80 +258,83 @@ void applyDCJ( PointDCJPtr *genomeDCJ, int *numPointsDCJ, int i, int j, int firs
 
 }
 
-int candidatePenalized( CandidatePtr candPtr, ParametersPtr paramsPtr ) 
+int penalization( PointDCJPtr *genomeDCJ, 
+			int *inverseDCJ, int numPointsDCJ, ParametersPtr paramsPtr )
 {
 	int numLinearChromosomes, numCircularChromosomes;
+	int penalty, repairOperations;
 
+	penalty = 0;
+	repairOperations = 0;
 	numLinearChromosomes = 0;
 	numCircularChromosomes = 0;
-	countLinearCircularChromosomes( 
-		candPtr, paramsPtr, &numLinearChromosomes, &numCircularChromosomes );
+	countLinearCircularChromosomes( genomeDCJ, inverseDCJ, numPointsDCJ, 
+						&numLinearChromosomes, &numCircularChromosomes );
 
-	switch ( paramsPtr->penaltyType ) {
-		/* penalize multiple chromosomes */
-		case MULTIPLE_CH: 
-			if ( numLinearChromosomes + numCircularChromosomes > 1 ) {
-				return TRUE;
-			}
+	switch ( paramsPtr->preferredType ) {
+		/* any genome structure */
+		case ANY : 
+			repairOperations = 0;
 			break;
-		/* penalize multiple circular chromosomes */
-		case MULT_CIRCULAR_CH: 
-			if ( numCircularChromosomes > 1 ) {
-				return TRUE;
-			}
+		/* preferred genome structure: one circular chromosome */
+		case ONE_CIRCULAR_CH :
+			repairOperations = 
+						numCircularChromosomes + numLinearChromosomes - 1;
 			break;
-		/* penalize linear chromosomes, and multiple circular chromosomes */
-		case LIN_CH_MULT_CIRC_CH : 
-			if ( numLinearChromosomes > 0 || numCircularChromosomes > 1 ) {
-				return TRUE;
-			}
+		/* preferred genome structure : one or more linear chromosomes */
+		case ONE_OR_MORE_LINEAR_CH :
+			repairOperations = numCircularChromosomes;
 			break;
-		/* penalize combinations of linear and circular chr. */
-		case COMB_LIN_CIRC_CH: 
-			if ( numLinearChromosomes >= 1 && numCircularChromosomes >= 1 ) {
-				return TRUE;
-			}
+		/* preferred genome structure: 
+			one circular, or one or more linear chromosomes */
+		case ONE_CIRCULAR_or_ONE_OR_MORE_LINEAR_CH :
+			repairOperations = min( numCircularChromosomes, 
+						numCircularChromosomes + numLinearChromosomes - 1 );
 			break;
 		default:
-			fprintf( stderr, " stderr: incorrect penalty type\n" );
+			fprintf( stderr, 
+				" stderr: incorrect preferred genome structure.\n" );
 			exit( EXIT_FAILURE );
 	}
+	
+	penalty = 2 * repairOperations;
 
-	return FALSE;
+	return penalty;
 }
 
-static void countLinearCircularChromosomes( CandidatePtr candPtr, 
-	ParametersPtr paramsPtr, int *numLinearChromosomes, int *numCircularChromosomes )
+static void countLinearCircularChromosomes( PointDCJPtr *genomeDCJ, 
+				int *inverseDCJ, int numPointsDCJ, 
+				int *numLinearChromosomes, int *numCircularChromosomes )
 {
 	int i, start, next, startType, endType, ipos, gpos;
 	int *visited;
 
 	/* allocate memory */
-	visited = malloc( candPtr->numPointsDCJ * sizeof( int ) );
+	visited = malloc( numPointsDCJ * sizeof( int ) );
 	if ( visited == NULL ) { nomemMessage( "visited" ); }
 
-	for ( i = 0; i < candPtr->numPointsDCJ; i++ ) { visited[ i ] = FALSE; }
+	for ( i = 0; i < numPointsDCJ; i++ ) { visited[ i ] = FALSE; }
 
 	/* count chromosomes */
-	for ( i = 0; i < candPtr->numPointsDCJ; i++ ) {
+	for ( i = 0; i < numPointsDCJ; i++ ) {
 		if ( visited[ i ] == FALSE ) {
 			visited[ i ] 	= TRUE;
-			start 			= candPtr->genomeDCJ[ i ]->x;
-			next 			= candPtr->genomeDCJ[ i ]->y * -1;
-			startType 		= candPtr->genomeDCJ[ i ]->type;
+			start 			= genomeDCJ[ i ]->x;
+			next 			= genomeDCJ[ i ]->y * -1;
+			startType 		= genomeDCJ[ i ]->type;
 
 			/* look for the DCJ point that has "next" */
 			while ( TRUE ) {
 				ipos = next > 0 ? 2 * next - 1 : 2 * abs( next ) - 2;
-				gpos = candPtr->inverseDCJ[ ipos ];
+				gpos = inverseDCJ[ ipos ];
 
 				visited[ gpos ] = TRUE;
-				endType = candPtr->genomeDCJ[ gpos ]->type;
-				if ( candPtr->genomeDCJ[ gpos ]->x == next ) {
-					next = candPtr->genomeDCJ[ gpos ]->y * -1;
+				endType = genomeDCJ[ gpos ]->type;
+				if ( genomeDCJ[ gpos ]->x == next ) {
+					next = genomeDCJ[ gpos ]->y * -1;
 				} 
 				else { //candPtr->genomeDCJ[ gpos ]->y == next
-					next = candPtr->genomeDCJ[ gpos ]->x * -1;
+					next = genomeDCJ[ gpos ]->x * -1;
 				}
 				
 				/* [count linear or circular chromosomes depending 

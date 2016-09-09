@@ -15,7 +15,8 @@ int DCJdistance( PointDCJPtr *genome1DCJ, PointDCJPtr *genome2DCJ,
 				int numPoints1DCJ, int numPoints2DCJ, int numberGenes );
 void calculateInverseGenome( PointDCJPtr *genomeDCJ, int numPointsDCJ, int *inverseGenome );
 void applyDCJ( PointDCJPtr *genomeDCJ, int *numPointsDCJ, int i, int j, int firstForm );
-int candidatePenalized( CandidatePtr candPtr, ParametersPtr paramsPtr ); 
+int penalization( PointDCJPtr *genomeDCJ, 
+			int *inverseDCJ, int numPointsDCJ, ParametersPtr paramsPtr );
 
 #endif
 
