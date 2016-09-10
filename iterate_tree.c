@@ -56,6 +56,11 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 static void allocateMemForCandidate( TreePtr phyloTreePtr, CandidatePtr *candPtr );
 static void freeCandidate( TreePtr phyloTreePtr, CandidatePtr *candPtr ); 
 
+/**********************************************************************/
+
+
+
+
 int labelOptimizeTree( TreePtr phyloTreePtr, ParametersPtr paramsPtr )
 {
 	int score;
@@ -98,7 +103,7 @@ int labelOptimizeTree( TreePtr phyloTreePtr, ParametersPtr paramsPtr )
 	return score;
 }
 
-/* [OPTIMIZER for reversal distance] 
+/* [-->OPTIMIZER for reversal distance] 
 	algorithm for labeling and optimizing the score of a tree by 
 	iteratively appliying the median of 3 genomes. */
 /* NOTE: this algorithm (originally called optimize_tree) was implemented as 
@@ -150,6 +155,51 @@ static int labelOptimizeTree_Blanchette(
 	freeTree( &tempTree, paramsPtr );//--method from tree.c
 
 	return score;
+}
+
+/* initialize tree using a depth first search (DFS) approach.
+ * the input (second parameter) must be the startingNode of the tree */
+static void initializeTreeUsingDFS( TreePtr phyloTreePtr, 
+		TreeNodePtr nodePtr, ParametersPtr paramsPtr )
+{
+	/* NOTE:
+	* If a node is an extremity (==TRUE) means that it is already labeled
+	* otherwise the node is not labeled */
+	
+	TreeNodePtr node1Ptr;
+	TreeNodePtr node2Ptr;
+	TreeNodePtr node3Ptr;
+	struct adj_struct *adjacencyList; /* from structs.h */
+
+	if ( nodePtr != NULL ) {
+		/* if node is not an extremity, 
+		* then setup a TSP instance and label the node */
+		if ( nodePtr->extremity == FALSE ) {
+			/* allocate memory*/
+			adjacencyList = 
+			malloc ( ( 2*phyloTreePtr->numberGenes + 1 ) * sizeof( struct adj_struct ) );
+    		if ( adjacencyList == NULL ) nomemMessage( "adjacencyList" ); 
+
+			/* search for the 3 nearest neighbors to nodePtr, which are labeled,
+			* create a TSP instance, and call a TSP solver to label nodePtr*/
+			node1Ptr = findNearestNeighbor( phyloTreePtr, nodePtr->ancestorPtr, -1, -1 );
+    		node2Ptr = findNearestNeighbor( phyloTreePtr, nodePtr->leftDescPtr, node1Ptr->id, -1 );
+    		node3Ptr = findNearestNeighbor( phyloTreePtr, nodePtr->rightDescPtr, node1Ptr->id, node2Ptr->id );
+
+			createTspInstance( phyloTreePtr->numberGenes, node1Ptr->genome, 
+				node2Ptr->genome, node3Ptr->genome, adjacencyList );//--method from median_solvers.c
+			callSolverAndLabelNode( phyloTreePtr, nodePtr, node1Ptr, node2Ptr, 
+				node3Ptr, adjacencyList, paramsPtr->solver, paramsPtr->circular );
+			
+			nodePtr->extremity = TRUE; /*node is now labeled*/
+
+			/* free memory */
+			free( adjacencyList );
+		}
+		/* visit the left and right descendant */
+		initializeTreeUsingDFS( phyloTreePtr, nodePtr->leftDescPtr, paramsPtr );
+		initializeTreeUsingDFS( phyloTreePtr, nodePtr->rightDescPtr, paramsPtr );	
+	}
 }
 
 /* iterate the tree using a depth first search (DFS) approach.
@@ -211,488 +261,101 @@ static void iterateTreeUsingDFS( TreePtr phyloTreePtr, TreeNodePtr nodePtr, Para
 	}
 }
 
-/* [OPTIMIZER for DCJ distance] 
-	algorithm for labeling and optimizing the score of a tree by 
-	generating candidates (genomes) for all internal nodes using a dynamic
-	programming approach */
-/* NOTE: Implemented as proposed by Kovac (2011) in the paper "A Practical 
-	Algorithm for Ancestral Rearrangement Reconstruction" */
-static int labelOptimizeTree_KovacDCJ( 
-			TreePtr phyloTreePtr, int initialize,  ParametersPtr paramsPtr )
+/* find nearest neighbor, which is labeled, using BFS */
+static TreeNodePtr findNearestNeighbor( TreePtr phyloTreePtr, 
+		TreeNodePtr nodePtr, int idNeighbor1, int idNeighbor2 )
 {
-	int i, index;
-	Tree tempTree;
-	int *numCandidates; /* array of num. candidates for each internal node */
-	//int *maxCandidates; /* max. candidates allowed for each internal node */ 
-	int **scoreMatrix;
-	CandidatePtr **candidateMatrix;
-	int score, newScore, improved, numInternalNodes;
+	Queue myQueue;
+	TreeNodePtr nodeAnsPtr;
+	TreeNodePtr nodeAuxPtr;
+	int *visited;
 
-	/* allocate memory for temporal tree */
-	tempTree.numberLeaves = phyloTreePtr->numberLeaves;
-	tempTree.numberGenes = phyloTreePtr->numberGenes;
-	allocateMemoryForNodes( &tempTree, paramsPtr );
-	/* allocate memory (just pointers) for matrix of scores and candidates */
-	numInternalNodes = phyloTreePtr->numberNodes - phyloTreePtr->numberLeaves;
-	scoreMatrix = malloc( numInternalNodes * sizeof( int * ) );
-	if ( scoreMatrix == NULL ) 
-		nomemMessage( "scoreMatrix" );  
-	candidateMatrix = malloc ( numInternalNodes * sizeof( CandidatePtr * ) );
-	if ( candidateMatrix == NULL ) 
-		nomemMessage( "candidateMatrix" );
-	/* allocate memory for arrays that saves number of candidates */ 
-	numCandidates = malloc( numInternalNodes * sizeof( int ) );
-	if ( numCandidates == NULL )
-		nomemMessage( "numCandidates" );
-	
-	/* initialize tree */
-	if ( initialize == TRUE ) {
-		if ( paramsPtr->problem == LARGE_PHYLOGENY ) {
-			initializeTreeWithDescendants( phyloTreePtr, 
-			phyloTreePtr->startingNodePtr->rightDescPtr, paramsPtr, GO_LEFT );
-		}
-		else { // SMALL_PHYLOGENY
-			initializeTreeWithDescendantsRandomly( 
-				phyloTreePtr, phyloTreePtr->startingNodePtr->rightDescPtr );
-		}
+	/* allocate memory */
+	visited = calloc( phyloTreePtr->numberNodes + 1, sizeof(int) );
+	if ( visited == NULL ) nomemMessage( "visited" );
+
+ 	/* if node is labeled, and is different of the other neighbors */
+	if ( nodePtr->extremity == TRUE && nodePtr->id != idNeighbor1 && 
+										nodePtr->id != idNeighbor2 ) 
+	{
+		nodeAnsPtr = nodePtr;
 	}
-
-	/* label and optimize tree */
-	improved = TRUE;
-	score = scoreTree( phyloTreePtr, 
-					phyloTreePtr->startingNodePtr->rightDescPtr, paramsPtr );
-	while ( improved == TRUE ) {
-		copyTreeInto( &tempTree, phyloTreePtr, FALSE, paramsPtr );
-		generateCandidates( phyloTreePtr, 
-			phyloTreePtr->startingNodePtr->rightDescPtr, 
-			candidateMatrix, numCandidates, paramsPtr );
-		calculateScoreCandidates( phyloTreePtr, 
-			phyloTreePtr->startingNodePtr->rightDescPtr, 
-			scoreMatrix, candidateMatrix, numCandidates, paramsPtr );
-		selectBestNeighborhood( phyloTreePtr, 
-			phyloTreePtr->startingNodePtr->rightDescPtr, 
-			scoreMatrix, candidateMatrix, numCandidates );
-
-		/* free memory allocated in function "generateCandidates(...)" */
-		for ( index = 0; index < numInternalNodes; index++ ) {
-			for ( i = 0; i < numCandidates[ index ]; i++) {
-				freeCandidate( phyloTreePtr, &candidateMatrix[ index ][ i ] );
-			}
-			free( candidateMatrix[ index ] );
-			free( scoreMatrix[ index ] );
-		}
-
-		/* calculate new score of the tree */
-		newScore = scoreTree( phyloTreePtr, 
-					phyloTreePtr->startingNodePtr->rightDescPtr, paramsPtr );
+	else {
+		visited[ nodePtr->id ] = TRUE;
+		enqueue( &myQueue, nodePtr );
 		
-		if ( newScore < score ) {
-			score = newScore;
-		}
-		else {
-			improved = FALSE;
-			/* recover last state of tree */
-			copyTreeInto( phyloTreePtr, &tempTree, FALSE, paramsPtr ); 
-		}
+		while ( isEmpty( &myQueue ) == FALSE ) {
+			nodeAuxPtr = dequeue( &myQueue );
+			/* if nodeAux is labeled, and is different of the other neighbors */
+			if ( nodeAuxPtr->extremity == TRUE && nodeAuxPtr->id != idNeighbor1 && 
+												nodeAuxPtr->id != idNeighbor2 ) 
+			{
+				nodeAnsPtr = nodeAuxPtr;
+				break;
+			}
+			else { /* otherwise visit adjacent nodes */
+				if ( nodeAuxPtr->ancestorPtr != NULL && visited[ nodeAuxPtr->ancestorPtr->id ] == FALSE ) {
+					visited[ nodeAuxPtr->ancestorPtr->id ] = TRUE;
+					enqueue( &myQueue, nodeAuxPtr->ancestorPtr );
+				}
+
+				if ( nodeAuxPtr->leftDescPtr != NULL && visited[ nodeAuxPtr->leftDescPtr->id ] == FALSE ){
+					visited[ nodeAuxPtr->leftDescPtr->id ] = TRUE;
+					enqueue( &myQueue, nodeAuxPtr->leftDescPtr );
+					
+				}
+
+				if ( nodeAuxPtr->rightDescPtr != NULL && visited[ nodeAuxPtr->rightDescPtr->id ] == FALSE ){					
+					visited[ nodeAuxPtr->rightDescPtr->id ] = TRUE;
+					enqueue( &myQueue, nodeAuxPtr->rightDescPtr );	
+				}
+			}
+		}//end while
 	}
 
 	/* free memory */
-	free( scoreMatrix );
-	free( candidateMatrix );
-	free( numCandidates );
-	freeTree( &tempTree, paramsPtr );//--method from tree.c 
+	free( visited );
 
-	return score;
+	return nodeAnsPtr;
 }
 
-/* [OPTIMIZER for DCJ distance] 
-	algorithm for labeling and optimizing the score of a tree by 
-	generating candidates (genomes) for all internal nodes using a dynamic
-	programming approach */
-/* NOTE: Implemented as proposed in "An Improved Algorithm for Ancestral 
-	Gene Order Reconstruction" by Herencsar */
-/*static*/ int labelOptimizeTree_HerencsarDCJ( 
-			TreePtr phyloTreePtr, int initialize,  ParametersPtr paramsPtr )
-{
-	/* 
-	*
-	* NOT IMMPLEMENTED */
-	return 0;
+/* call a median solver and label nodePtr */
+/*NOTE: the median genome will returned in nodePtr*/
+static void callSolverAndLabelNode( TreePtr phyloTreePtr, TreeNodePtr nodePtr, 
+	TreeNodePtr node1Ptr, TreeNodePtr node2Ptr, TreeNodePtr node3Ptr,
+	struct adj_struct *adjacencyList, enum medianSolvers solver, int circular )
+{	
+	int *tspCycle;
+
+	/* allocate memory */
+	tspCycle = malloc ( ( 2*phyloTreePtr->numberGenes + 1 ) * sizeof(int) );
+    if ( tspCycle == NULL ) nomemMessage( "tspCycle" ); 
+
+    /* call a median solver */
+	if ( solver == COALESTSP ) {
+		callCoalestsp( phyloTreePtr->numberGenes, node1Ptr->genome, 
+	   				node2Ptr->genome, node3Ptr->genome, adjacencyList, 
+	   				nodePtr->genome, tspCycle, circular );//--method from median_solvers.c
+    }
+    else if ( solver == BBTSP ) {
+        callBbtsp( phyloTreePtr->numberGenes, node1Ptr->genome, 
+        			node2Ptr->genome, node3Ptr->genome, adjacencyList, 
+        			nodePtr->genome, tspCycle, circular );//--method from median_solvers.c
+    }
+    else if ( solver == CAPRARA_INV_MEDIAN ) {
+        callCapraraInversionMedian( phyloTreePtr->numberGenes, node1Ptr->genome, 
+        	node2Ptr->genome, node3Ptr->genome, nodePtr->genome, circular );
+    }
+    else{
+        fprintf(stderr, "stderr: not a valid median solver.\n");
+        exit(EXIT_FAILURE); 
+    }
+
+    /* free memory */
+    free(tspCycle);
 }
 
-/* NOTE: in the first call of this procedure, the second argument 
-			must be the right descendant of the starting node */
-static void generateCandidates( TreePtr phyloTreePtr, TreeNodePtr nodePtr,
-						CandidatePtr **candidateMatrix, int *numCandidates, 
-						ParametersPtr paramsPtr ) 
-{
-	int i, j, h, index, numA, numT;
-	int x, y, xpos, ypos, maxCandidates;
-
-	if ( nodePtr->type == INTERNAL_NODE ) { 
-		generateCandidates( phyloTreePtr, nodePtr->leftDescPtr, 
-						candidateMatrix, numCandidates, paramsPtr );
-		generateCandidates( phyloTreePtr, nodePtr->rightDescPtr, 
-						candidateMatrix, numCandidates, paramsPtr );
-
-		/* re-calculate index (of internal node) to be zero-based */
-		index = nodePtr->index - phyloTreePtr->numberLeaves; 
-
-		/* calculate max number of candidates for the current node */
-		numA = 0; //number of adjacencies
-		numT = 0; //number of telomeres
-		for ( i = 0; i < nodePtr->numPointsDCJ; i++ ) {
-			if ( nodePtr->genomeDCJ[ i ]->type == ADJACENCY )
-				numA++;
-			else //nodePtr->genomeDCJ[ i ]->type == TELOMERE
-				numT++;
-		}
-		maxCandidates = 	
-			numA + 							// for inv. of case (3)
-			2 * numA * ( numA - 1 ) / 2 + 	// 2 * C(numA, 2), for case (1)
-			2 * numA * numT +				// for case (2)
-			numT / 2;						// for case (3)
-
-		/* allocate memory for array of candidates for nodePtr */
-		candidateMatrix[ index ] = 
-							malloc( maxCandidates * sizeof( CandidatePtr ) );
-		if ( candidateMatrix[ index ] == NULL )
-			nomemMessage( "candidateMatrix[ index ]" );
-
-		/* generate candidates for inverse of case (3) */
-		h = 0;
-		for ( i = 0; i < nodePtr->numPointsDCJ; i++ ) {
-			if ( nodePtr->genomeDCJ[ i ]->type == ADJACENCY ) {
-				/* calculate position for checking inverses genomes */
-				x = nodePtr->genomeDCJ[ i ]->x;
-				y = nodePtr->genomeDCJ[ i ]->y;
-				xpos = x > 0 ? 2 * x - 1 : 2 * abs( x ) - 2;
-				ypos = y > 0 ? 2 * y - 1 : 2 * abs( y ) - 2;
-				/* if adjacency (i->x, i->y) is also a adjacency in ancestor, 
-					left desc., or right desc. do nothing */
-				if ( nodePtr->ancestorPtr->inverseDCJ[ xpos ] == 
-							nodePtr->ancestorPtr->inverseDCJ[ ypos ] && 
-					nodePtr->leftDescPtr->inverseDCJ[ xpos ] == 
-							nodePtr->leftDescPtr->inverseDCJ[ ypos ] && 
-					nodePtr->rightDescPtr->inverseDCJ[ xpos ] == 
-							nodePtr->rightDescPtr->inverseDCJ[ ypos ] ) {
-					continue;
-				}
-
-				allocateMemForCandidate( 
-							phyloTreePtr, &candidateMatrix[ index ][ h ] );
-
-				copyCurrentNodeIntoCandidate( phyloTreePtr,
-							candidateMatrix[ index ][ h ], nodePtr, FALSE );
-				
-				/* apply DCJ on copy and generate candidate */
-				applyDCJ( candidateMatrix[ index ][ h ]->genomeDCJ, 
-						&candidateMatrix[ index ][ h ]->numPointsDCJ, 
-						i, i, TRUE );//--from dcjdist.c
-			
-				calculateInverseGenome( 
-					candidateMatrix[ index ][ h ]->genomeDCJ, 
-					candidateMatrix[ index ][ h ]->numPointsDCJ, 
-					candidateMatrix[ index ][ h ]->inverseDCJ );//--from dcjdist.c
-
-				h++;
-			}
-		}
-
-		/* generate candidates by choosing two different indices: case (1), (2), and (3) */ 
-		for ( i = 0; i < nodePtr->numPointsDCJ - 1; i++ ) {
-			for ( j = i + 1; j < nodePtr->numPointsDCJ; j++ ) {
-				/* calculate position for checking inverses genomes */
-				x = nodePtr->genomeDCJ[ i ]->x;
-				y = nodePtr->genomeDCJ[ i ]->y;
-				xpos = x > 0 ? 2 * x - 1 : 2 * abs( x ) - 2;
-				ypos = y > 0 ? 2 * y - 1 : 2 * abs( y ) - 2;
-
-				/* if adjacency (i->x, i->y) is also a adjacency in ancestor, 
-					left desc., or right desc. do nothing */
-				if ( nodePtr->ancestorPtr->inverseDCJ[ xpos ] == nodePtr->ancestorPtr->inverseDCJ[ ypos ] && 
-					nodePtr->leftDescPtr->inverseDCJ[ xpos ] == nodePtr->leftDescPtr->inverseDCJ[ ypos ] && 
-					nodePtr->rightDescPtr->inverseDCJ[ xpos ] == nodePtr->rightDescPtr->inverseDCJ[ ypos ] ) {
-					continue;
-				}
-
-				/* calculate position for checking inverses genomes */
-				x = nodePtr->genomeDCJ[ j ]->x;
-				y = nodePtr->genomeDCJ[ j ]->y;
-				xpos = x > 0 ? 2 * x - 1 : 2 * abs( x ) - 2;
-				ypos = y > 0 ? 2 * y - 1 : 2 * abs( y ) - 2;
-
-				/* if adjacency (j->x,j->y) is also a adjacency in ancestor, 
-					left desc., or right desc. do nothing */
-				if ( nodePtr->ancestorPtr->inverseDCJ[ xpos ] == nodePtr->ancestorPtr->inverseDCJ[ ypos ] && 
-					nodePtr->leftDescPtr->inverseDCJ[ xpos ] == nodePtr->leftDescPtr->inverseDCJ[ ypos ] && 
-					nodePtr->rightDescPtr->inverseDCJ[ xpos ] == nodePtr->rightDescPtr->inverseDCJ[ ypos ] ) {
-					continue;
-				}
-
-				allocateMemForCandidate( 
-							phyloTreePtr, &candidateMatrix[ index ][ h ] );
-
-				copyCurrentNodeIntoCandidate( phyloTreePtr,
-							candidateMatrix[ index ][ h ], nodePtr, FALSE );
-
-				/* apply DCJ on copy and generate candidate */
-				applyDCJ( candidateMatrix[ index ][ h ]->genomeDCJ, 
-						&candidateMatrix[ index ][ h ]->numPointsDCJ, 
-						i, j, TRUE );//--from dcjdist.c
-				
-				calculateInverseGenome( 
-					candidateMatrix[ index ][ h ]->genomeDCJ, 
-					candidateMatrix[ index ][ h ]->numPointsDCJ, 
-					candidateMatrix[ index ][ h ]->inverseDCJ );//--from dcjdist.c
-
-				h++; 
-
-				/* do the second FORM in case one of the point is a adjacency */
-				if ( nodePtr->genomeDCJ[ i ]->type == ADJACENCY || 
-						nodePtr->genomeDCJ[ j ]->type == ADJACENCY ) {
-
-					allocateMemForCandidate( 
-							phyloTreePtr, &candidateMatrix[ index ][ h ] );
-
-					copyCurrentNodeIntoCandidate( phyloTreePtr,
-							candidateMatrix[ index ][ h ], nodePtr, FALSE );
-
-					/* apply DCJ on copy and generate candidate */
-					applyDCJ( candidateMatrix[ index ][ h ]->genomeDCJ, 
-						&candidateMatrix[ index ][ h ]->numPointsDCJ, 
-						i, j, FALSE );//--from dcjdist.c
-					
-					calculateInverseGenome( 
-						candidateMatrix[ index ][ h ]->genomeDCJ, 
-						candidateMatrix[ index ][ h ]->numPointsDCJ, 
-						candidateMatrix[ index ][ h ]->inverseDCJ );//--from dcjdist.c
-
-					h++;					
-				}
-			}
-		}
-		numCandidates[ index ] = h;
-
-		/* if number of candidates is zero, create just one candidate with current node */
-		if ( numCandidates[ index ] == 0 ) {
-			numCandidates[ index ] = 1;
-
-			allocateMemForCandidate( 
-							phyloTreePtr, &candidateMatrix[ index ][ h ] );
-			copyCurrentNodeIntoCandidate( phyloTreePtr,
-							candidateMatrix[ index ][ h ], nodePtr, TRUE );
-		}
-	}//end-if
-	//NOTE:
-	//memory allocated in this function will be freed 
-	//after the execution of function "selectBestNeighborhood".
-}
-
-static void copyCurrentNodeIntoCandidate( TreePtr phyloTreePtr,
-				CandidatePtr candPtr, TreeNodePtr nodePtr, int copyInverse ) 
-{
-	int k;
-
-	candPtr->numPointsDCJ = nodePtr->numPointsDCJ;
-	for ( k = 0; k < nodePtr->numPointsDCJ; k++ ) {
-		candPtr->genomeDCJ[ k ]->x = nodePtr->genomeDCJ[ k ]->x;
-		candPtr->genomeDCJ[ k ]->y = nodePtr->genomeDCJ[ k ]->y;
-		candPtr->genomeDCJ[ k ]->type = nodePtr->genomeDCJ[ k ]->type;
-	}
-
-	if ( copyInverse == TRUE ) {
-		for ( k = 0; k < 2 * phyloTreePtr->numberGenes; k++ ) {
-			candPtr->inverseDCJ[ k ] = nodePtr->inverseDCJ[ k ];
-		}	
-	}
-}
-
-/* NOTE: in the first call of this procedure, the second argument 
-			must be the right descendant of the starting node */
-static void calculateScoreCandidates( TreePtr phyloTreePtr, 
-						TreeNodePtr nodePtr, int **scoreMatrix, 
-						CandidatePtr **candidateMatrix, 
-						int *numCandidates, ParametersPtr paramsPtr ) 
-{
-
-	int i, j, min_left, min_right, temp, index, index2;
-
-	if ( nodePtr->type == INTERNAL_NODE ) {
-		calculateScoreCandidates( phyloTreePtr, nodePtr->leftDescPtr, 
-					scoreMatrix, candidateMatrix, numCandidates, paramsPtr );
-		calculateScoreCandidates( phyloTreePtr, nodePtr->rightDescPtr,
-					scoreMatrix, candidateMatrix, numCandidates, paramsPtr );
-
-		/* re-calculate index (of internal node) to be zero-based */
-		index = nodePtr->index - phyloTreePtr->numberLeaves;
-
-		/* allocate memory for scoreMatrix[ index ] */
-		scoreMatrix[ index ] = 
-						malloc( numCandidates[ index ] * sizeof( int ) );
-		if ( scoreMatrix[ index ] == NULL )
-			nomemMessage( "scoreMatrix[ index ]" );
-
-		/* calculate min scores of candidates of current node (nodePtr)  */
-		for ( i = 0; i < numCandidates[ index ]; i++ ) {
-			/* calculate min score of candidate "i" regarding LEFT descendant candidates */
-			if ( nodePtr->leftDescPtr->type == LEAF_NODE ) {
-				min_left = DCJdistance( 
-								candidateMatrix[ index ][ i ]->genomeDCJ, 
-								nodePtr->leftDescPtr->genomeDCJ, 
-								candidateMatrix[ index ][ i ]->inverseDCJ,
-								nodePtr->leftDescPtr->inverseDCJ,
-								candidateMatrix[ index ][ i ]->numPointsDCJ, 
-								nodePtr->leftDescPtr->numPointsDCJ,
-								phyloTreePtr->numberGenes );
-			}
-			else { //nodePtr->leftDescPtr->type == INTERNAL_NODE
-				j = 0;
-				index2 = nodePtr->leftDescPtr->index - 
-							phyloTreePtr->numberLeaves;// re-calculate index
-				min_left = scoreMatrix[ index2 ][ j ] + 
-							DCJdistance(
-								candidateMatrix[ index ][ i ]->genomeDCJ, 
-								candidateMatrix[ index2 ][ j ]->genomeDCJ, 
-								candidateMatrix[ index ][ i ]->inverseDCJ,
-								candidateMatrix[ index2 ][ j ]->inverseDCJ,
-								candidateMatrix[ index ][ i ]->numPointsDCJ, 
-								candidateMatrix[ index2 ][ j ]->numPointsDCJ, 
-								phyloTreePtr->numberGenes );
-
-				for ( j = 1; j < numCandidates[ index2 ]; j++ ) {
-					temp = scoreMatrix[ index2 ][ j ] + 
-							DCJdistance(
-								candidateMatrix[ index ][ i ]->genomeDCJ, 
-								candidateMatrix[ index2 ][ j ]->genomeDCJ, 
-								candidateMatrix[ index ][ i ]->inverseDCJ,
-								candidateMatrix[ index2 ][ j ]->inverseDCJ,
-								candidateMatrix[ index ][ i ]->numPointsDCJ, 
-								candidateMatrix[ index2 ][ j ]->numPointsDCJ, 
-								phyloTreePtr->numberGenes );
-
-					if (temp < min_left) {
-						min_left = temp;
-					}
-				}
-			}
-
-			/* calculate min score of candidate "i" regarding RIGHT descendant candidates */
-			if ( nodePtr->rightDescPtr->type == LEAF_NODE ) {
-				min_right = DCJdistance(
-								candidateMatrix[ index ][ i ]->genomeDCJ, 
-								nodePtr->rightDescPtr->genomeDCJ, 
-								candidateMatrix[ index ][ i ]->inverseDCJ,
-								nodePtr->rightDescPtr->inverseDCJ,
-								candidateMatrix[ index ][ i ]->numPointsDCJ, 
-								nodePtr->rightDescPtr->numPointsDCJ,
-								phyloTreePtr->numberGenes );
-			}
-			else { //nodePtr->rightDescPtr->type == INTERNAL_NODE
-				j = 0;
-				index2 = nodePtr->rightDescPtr->index - 
-							phyloTreePtr->numberLeaves;// re-calculate index
-
-				min_right = scoreMatrix[ index2 ][ j ] + 
-							DCJdistance(
-								candidateMatrix[ index ][ i ]->genomeDCJ, 
-								candidateMatrix[ index2 ][ j ]->genomeDCJ, 
-								candidateMatrix[ index ][ i ]->inverseDCJ,
-								candidateMatrix[ index2 ][ j ]->inverseDCJ,
-								candidateMatrix[ index ][ i ]->numPointsDCJ, 
-								candidateMatrix[ index2 ][ j ]->numPointsDCJ, 
-								phyloTreePtr->numberGenes );
-
-				for ( j = 1; j < numCandidates[ index2 ]; j++ ) {
-					temp = scoreMatrix[ index2 ][ j ] + 
-							DCJdistance(
-								candidateMatrix[ index ][ i ]->genomeDCJ, 
-								candidateMatrix[ index2 ][ j ]->genomeDCJ, 
-								candidateMatrix[ index ][ i ]->inverseDCJ,
-								candidateMatrix[ index2 ][ j ]->inverseDCJ,
-								candidateMatrix[ index ][ i ]->numPointsDCJ, 
-								candidateMatrix[ index2 ][ j ]->numPointsDCJ, 
-								phyloTreePtr->numberGenes );
-
-					if (temp < min_right) {
-						min_right = temp;
-					}
-				}
-			}
-
-			scoreMatrix[ index ][ i ] = min_left + min_right + 
-					penalization( candidateMatrix[ index ][ i ]->genomeDCJ, 
-								candidateMatrix[ index ][ i ]->inverseDCJ, 
-								candidateMatrix[ index ][ i ]->numPointsDCJ,
-								paramsPtr );
-
-		} //end-for
-	}
-
-	//NOTE:
-	//memory allocated in this function will be freed 
-	//after the execution of function "selectBestNeighborhood".
-}
-
-/* NOTE: in the first call of this procedure, the second argument 
-			must be the right descendant of the starting node */
-static void selectBestNeighborhood( TreePtr phyloTreePtr, 
-					TreeNodePtr nodePtr, int **scoreMatrix, 
-					CandidatePtr **candidateMatrix, int *numCandidates )
-{
-	int i, k, index, score, newScore, iBest;
-
-	if ( nodePtr->type == INTERNAL_NODE ) {
-		index = nodePtr->index - phyloTreePtr->numberLeaves;
-		
-		i = 0;
-		iBest = i;
-		score = scoreMatrix[ index ][ i ] + 
-				DCJdistance(
-						candidateMatrix[ index ][ i ]->genomeDCJ, 
-						nodePtr->ancestorPtr->genomeDCJ, 
-						candidateMatrix[ index ][ i ]->inverseDCJ,
-						nodePtr->ancestorPtr->inverseDCJ,
-						candidateMatrix[ index ][ i ]->numPointsDCJ, 
-						nodePtr->ancestorPtr->numPointsDCJ,
-						phyloTreePtr->numberGenes );
-
-		for ( i = 1; i < numCandidates[ index ]; i++ ) {
-			newScore = scoreMatrix[ index ][ i ] + 
-						DCJdistance(
-								candidateMatrix[ index ][ i ]->genomeDCJ, 
-								nodePtr->ancestorPtr->genomeDCJ, 
-								candidateMatrix[ index ][ i ]->inverseDCJ,
-								nodePtr->ancestorPtr->inverseDCJ,
-								candidateMatrix[ index ][ i ]->numPointsDCJ, 
-								nodePtr->ancestorPtr->numPointsDCJ,
-								phyloTreePtr->numberGenes );
-			if ( newScore < score ) {
-				score = newScore;
-				iBest = i;
-			}
-		}
-
-		/* copy best candidate found into current node */
-		nodePtr->numPointsDCJ = candidateMatrix[ index ][ iBest ]->numPointsDCJ;
-		for ( k = 0; k < nodePtr->numPointsDCJ; k++ ) {
-			nodePtr->genomeDCJ[ k ]->x = candidateMatrix[ index ][ iBest ]->genomeDCJ[ k ]->x;
-			nodePtr->genomeDCJ[ k ]->y = candidateMatrix[ index ][ iBest ]->genomeDCJ[ k ]->y;
-			nodePtr->genomeDCJ[ k ]->type = candidateMatrix[ index ][ iBest ]->genomeDCJ[ k ]->type;
-		}
-		for ( k = 0; k < 2 * phyloTreePtr->numberGenes; k++ ) {
-			nodePtr->inverseDCJ[ k ] = candidateMatrix[ index ][ iBest ]->inverseDCJ[ k ];
-		}	
-
-		selectBestNeighborhood( phyloTreePtr, nodePtr->leftDescPtr, 
-								scoreMatrix, candidateMatrix, numCandidates );
-		selectBestNeighborhood( phyloTreePtr, nodePtr->rightDescPtr, 
-								scoreMatrix, candidateMatrix, numCandidates );
-	}
-}
-
-
-/* [OPTIMIZER for DCJ distance] 
+/* [-->OPTIMIZER for DCJ distance] 
 	algorithm for labeling and optimizing the score of a tree by 
 	generating candidates for each internal node and greedily improve the tree */
 static int labelOptimizeTree_GreedyCandidatesDCJ( 
@@ -1129,144 +792,724 @@ static void freeCandidate( TreePtr phyloTreePtr, CandidatePtr *candPtr )
 	free( ( *candPtr ) );
 }
 
-/* initialize tree using a depth first search (DFS) approach.
- * the input (second parameter) must be the startingNode of the tree */
-static void initializeTreeUsingDFS( TreePtr phyloTreePtr, 
-		TreeNodePtr nodePtr, ParametersPtr paramsPtr )
+/* [-->OPTIMIZER for DCJ distance] 
+	algorithm for labeling and optimizing the score of a tree by 
+	generating candidates (genomes) for all internal nodes using a dynamic
+	programming approach */
+/* NOTE: Implemented as proposed by Kovac (2011) in the paper "A Practical 
+	Algorithm for Ancestral Rearrangement Reconstruction" */
+static int labelOptimizeTree_KovacDCJ( 
+			TreePtr phyloTreePtr, int initialize,  ParametersPtr paramsPtr )
 {
-	/* NOTE:
-	* If a node is an extremity (==TRUE) means that it is already labeled
-	* otherwise the node is not labeled */
+	int i, index;
+	Tree tempTree;
+	int *numCandidates; /* array of num. candidates for each internal node */
+	//int *maxCandidates; /* max. candidates allowed for each internal node */ 
+	int **scoreMatrix;
+	CandidatePtr **candidateMatrix;
+	int score, newScore, improved, numInternalNodes;
+
+	/* allocate memory for temporal tree */
+	tempTree.numberLeaves = phyloTreePtr->numberLeaves;
+	tempTree.numberGenes = phyloTreePtr->numberGenes;
+	allocateMemoryForNodes( &tempTree, paramsPtr );
+	/* allocate memory (just pointers) for matrix of scores and candidates */
+	numInternalNodes = phyloTreePtr->numberNodes - phyloTreePtr->numberLeaves;
+	scoreMatrix = malloc( numInternalNodes * sizeof( int * ) );
+	if ( scoreMatrix == NULL ) 
+		nomemMessage( "scoreMatrix" );  
+	candidateMatrix = malloc ( numInternalNodes * sizeof( CandidatePtr * ) );
+	if ( candidateMatrix == NULL ) 
+		nomemMessage( "candidateMatrix" );
+	/* allocate memory for arrays that saves number of candidates */ 
+	numCandidates = malloc( numInternalNodes * sizeof( int ) );
+	if ( numCandidates == NULL )
+		nomemMessage( "numCandidates" );
 	
-	TreeNodePtr node1Ptr;
-	TreeNodePtr node2Ptr;
-	TreeNodePtr node3Ptr;
-	struct adj_struct *adjacencyList; /* from structs.h */
-
-	if ( nodePtr != NULL ) {
-		/* if node is not an extremity, 
-		* then setup a TSP instance and label the node */
-		if ( nodePtr->extremity == FALSE ) {
-			/* allocate memory*/
-			adjacencyList = 
-			malloc ( ( 2*phyloTreePtr->numberGenes + 1 ) * sizeof( struct adj_struct ) );
-    		if ( adjacencyList == NULL ) nomemMessage( "adjacencyList" ); 
-
-			/* search for the 3 nearest neighbors to nodePtr, which are labeled,
-			* create a TSP instance, and call a TSP solver to label nodePtr*/
-			node1Ptr = findNearestNeighbor( phyloTreePtr, nodePtr->ancestorPtr, -1, -1 );
-    		node2Ptr = findNearestNeighbor( phyloTreePtr, nodePtr->leftDescPtr, node1Ptr->id, -1 );
-    		node3Ptr = findNearestNeighbor( phyloTreePtr, nodePtr->rightDescPtr, node1Ptr->id, node2Ptr->id );
-
-			createTspInstance( phyloTreePtr->numberGenes, node1Ptr->genome, 
-				node2Ptr->genome, node3Ptr->genome, adjacencyList );//--method from median_solvers.c
-			callSolverAndLabelNode( phyloTreePtr, nodePtr, node1Ptr, node2Ptr, 
-				node3Ptr, adjacencyList, paramsPtr->solver, paramsPtr->circular );
-			
-			nodePtr->extremity = TRUE; /*node is now labeled*/
-
-			/* free memory */
-			free( adjacencyList );
+	/* initialize tree */
+	if ( initialize == TRUE ) {
+		if ( paramsPtr->problem == LARGE_PHYLOGENY ) {
+			initializeTreeWithDescendants( phyloTreePtr, 
+			phyloTreePtr->startingNodePtr->rightDescPtr, paramsPtr, GO_LEFT );
 		}
-		/* visit the left and right descendant */
-		initializeTreeUsingDFS( phyloTreePtr, nodePtr->leftDescPtr, paramsPtr );
-		initializeTreeUsingDFS( phyloTreePtr, nodePtr->rightDescPtr, paramsPtr );	
+		else { // SMALL_PHYLOGENY
+			initializeTreeWithDescendantsRandomly( 
+				phyloTreePtr, phyloTreePtr->startingNodePtr->rightDescPtr );
+		}
 	}
-}
 
-/* find nearest neighbor, which is labeled, using BFS */
-static TreeNodePtr findNearestNeighbor( TreePtr phyloTreePtr, 
-		TreeNodePtr nodePtr, int idNeighbor1, int idNeighbor2 )
-{
-	Queue myQueue;
-	TreeNodePtr nodeAnsPtr;
-	TreeNodePtr nodeAuxPtr;
-	int *visited;
+	/* label and optimize tree */
+	improved = TRUE;
+	score = scoreTree( phyloTreePtr, 
+					phyloTreePtr->startingNodePtr->rightDescPtr, paramsPtr );
+	while ( improved == TRUE ) {
+		copyTreeInto( &tempTree, phyloTreePtr, FALSE, paramsPtr );
+		generateCandidates( phyloTreePtr, 
+			phyloTreePtr->startingNodePtr->rightDescPtr, 
+			candidateMatrix, numCandidates, paramsPtr );
+		calculateScoreCandidates( phyloTreePtr, 
+			phyloTreePtr->startingNodePtr->rightDescPtr, 
+			scoreMatrix, candidateMatrix, numCandidates, paramsPtr );
+		selectBestNeighborhood( phyloTreePtr, 
+			phyloTreePtr->startingNodePtr->rightDescPtr, 
+			scoreMatrix, candidateMatrix, numCandidates );
 
-	/* allocate memory */
-	visited = calloc( phyloTreePtr->numberNodes + 1, sizeof(int) );
-	if ( visited == NULL ) nomemMessage( "visited" );
+		/* free memory allocated in function "generateCandidates(...)" */
+		for ( index = 0; index < numInternalNodes; index++ ) {
+			for ( i = 0; i < numCandidates[ index ]; i++) {
+				freeCandidate( phyloTreePtr, &candidateMatrix[ index ][ i ] );
+			}
+			free( candidateMatrix[ index ] );
+			free( scoreMatrix[ index ] );
+		}
 
- 	/* if node is labeled, and is different of the other neighbors */
-	if ( nodePtr->extremity == TRUE && nodePtr->id != idNeighbor1 && 
-										nodePtr->id != idNeighbor2 ) 
-	{
-		nodeAnsPtr = nodePtr;
-	}
-	else {
-		visited[ nodePtr->id ] = TRUE;
-		enqueue( &myQueue, nodePtr );
+		/* calculate new score of the tree */
+		newScore = scoreTree( phyloTreePtr, 
+					phyloTreePtr->startingNodePtr->rightDescPtr, paramsPtr );
 		
-		while ( isEmpty( &myQueue ) == FALSE ) {
-			nodeAuxPtr = dequeue( &myQueue );
-			/* if nodeAux is labeled, and is different of the other neighbors */
-			if ( nodeAuxPtr->extremity == TRUE && nodeAuxPtr->id != idNeighbor1 && 
-												nodeAuxPtr->id != idNeighbor2 ) 
-			{
-				nodeAnsPtr = nodeAuxPtr;
-				break;
-			}
-			else { /* otherwise visit adjacent nodes */
-				if ( nodeAuxPtr->ancestorPtr != NULL && visited[ nodeAuxPtr->ancestorPtr->id ] == FALSE ) {
-					visited[ nodeAuxPtr->ancestorPtr->id ] = TRUE;
-					enqueue( &myQueue, nodeAuxPtr->ancestorPtr );
-				}
-
-				if ( nodeAuxPtr->leftDescPtr != NULL && visited[ nodeAuxPtr->leftDescPtr->id ] == FALSE ){
-					visited[ nodeAuxPtr->leftDescPtr->id ] = TRUE;
-					enqueue( &myQueue, nodeAuxPtr->leftDescPtr );
-					
-				}
-
-				if ( nodeAuxPtr->rightDescPtr != NULL && visited[ nodeAuxPtr->rightDescPtr->id ] == FALSE ){					
-					visited[ nodeAuxPtr->rightDescPtr->id ] = TRUE;
-					enqueue( &myQueue, nodeAuxPtr->rightDescPtr );	
-				}
-			}
-		}//end while
+		if ( newScore < score ) {
+			score = newScore;
+		}
+		else {
+			improved = FALSE;
+			/* recover last state of tree */
+			copyTreeInto( phyloTreePtr, &tempTree, FALSE, paramsPtr ); 
+		}
 	}
 
 	/* free memory */
-	free( visited );
+	free( scoreMatrix );
+	free( candidateMatrix );
+	free( numCandidates );
+	freeTree( &tempTree, paramsPtr );//--method from tree.c 
 
-	return nodeAnsPtr;
+	return score;
 }
 
-/* call a median solver and label nodePtr */
-/*NOTE: the median genome will returned in nodePtr*/
-static void callSolverAndLabelNode( TreePtr phyloTreePtr, TreeNodePtr nodePtr, 
-	TreeNodePtr node1Ptr, TreeNodePtr node2Ptr, TreeNodePtr node3Ptr,
-	struct adj_struct *adjacencyList, enum medianSolvers solver, int circular )
-{	
-	int *tspCycle;
-
-	/* allocate memory */
-	tspCycle = malloc ( ( 2*phyloTreePtr->numberGenes + 1 ) * sizeof(int) );
-    if ( tspCycle == NULL ) nomemMessage( "tspCycle" ); 
-
-    /* call a median solver */
-	if ( solver == COALESTSP ) {
-		callCoalestsp( phyloTreePtr->numberGenes, node1Ptr->genome, 
-	   				node2Ptr->genome, node3Ptr->genome, adjacencyList, 
-	   				nodePtr->genome, tspCycle, circular );//--method from median_solvers.c
-    }
-    else if ( solver == BBTSP ) {
-        callBbtsp( phyloTreePtr->numberGenes, node1Ptr->genome, 
-        			node2Ptr->genome, node3Ptr->genome, adjacencyList, 
-        			nodePtr->genome, tspCycle, circular );//--method from median_solvers.c
-    }
-    else if ( solver == CAPRARA_INV_MEDIAN ) {
-        callCapraraInversionMedian( phyloTreePtr->numberGenes, node1Ptr->genome, 
-        	node2Ptr->genome, node3Ptr->genome, nodePtr->genome, circular );
-    }
-    else{
-        fprintf(stderr, "stderr: not a valid median solver.\n");
-        exit(EXIT_FAILURE); 
-    }
-
-    /* free memory */
-    free(tspCycle);
+/* [-->OPTIMIZER for DCJ distance] 
+	algorithm for labeling and optimizing the score of a tree by 
+	generating candidates (genomes) for all internal nodes using a dynamic
+	programming approach */
+/* NOTE: Implemented as proposed in "An Improved Algorithm for Ancestral 
+	Gene Order Reconstruction" by Herencsar */
+/*static*/ int labelOptimizeTree_HerencsarDCJ( 
+			TreePtr phyloTreePtr, int initialize,  ParametersPtr paramsPtr )
+{
+	/* 
+	*
+	* NOT IMMPLEMENTED */
+	return 0;
 }
+
+/* NOTE: in the first call of this procedure, the second argument 
+			must be the right descendant of the starting node */
+static void generateCandidates( TreePtr phyloTreePtr, TreeNodePtr nodePtr,
+						CandidatePtr **candidateMatrix, int *numCandidates, 
+						ParametersPtr paramsPtr ) 
+{
+	int i, j, h, index, numA, numT;
+	int x, y, xpos, ypos, maxCandidates;
+
+	if ( nodePtr->type == INTERNAL_NODE ) { 
+		generateCandidates( phyloTreePtr, nodePtr->leftDescPtr, 
+						candidateMatrix, numCandidates, paramsPtr );
+		generateCandidates( phyloTreePtr, nodePtr->rightDescPtr, 
+						candidateMatrix, numCandidates, paramsPtr );
+
+		/* re-calculate index (of internal node) to be zero-based */
+		index = nodePtr->index - phyloTreePtr->numberLeaves; 
+
+		/* calculate max number of candidates for the current node */
+		numA = 0; //number of adjacencies
+		numT = 0; //number of telomeres
+		for ( i = 0; i < nodePtr->numPointsDCJ; i++ ) {
+			if ( nodePtr->genomeDCJ[ i ]->type == ADJACENCY )
+				numA++;
+			else //nodePtr->genomeDCJ[ i ]->type == TELOMERE
+				numT++;
+		}
+		maxCandidates = 	
+			numA + 							// for inv. of case (3)
+			2 * numA * ( numA - 1 ) / 2 + 	// 2 * C(numA, 2), for case (1)
+			2 * numA * numT +				// for case (2)
+			numT / 2;						// for case (3)
+
+		/* allocate memory for array of candidates for nodePtr */
+		candidateMatrix[ index ] = 
+							malloc( maxCandidates * sizeof( CandidatePtr ) );
+		if ( candidateMatrix[ index ] == NULL )
+			nomemMessage( "candidateMatrix[ index ]" );
+
+		/* generate candidates for inverse of case (3) */
+		h = 0;
+		for ( i = 0; i < nodePtr->numPointsDCJ; i++ ) {
+			if ( nodePtr->genomeDCJ[ i ]->type == ADJACENCY ) {
+				/* calculate position for checking inverses genomes */
+				x = nodePtr->genomeDCJ[ i ]->x;
+				y = nodePtr->genomeDCJ[ i ]->y;
+				xpos = x > 0 ? 2 * x - 1 : 2 * abs( x ) - 2;
+				ypos = y > 0 ? 2 * y - 1 : 2 * abs( y ) - 2;
+				/* if adjacency (i->x, i->y) is also a adjacency in ancestor, 
+					left desc., or right desc. do nothing */
+				if ( nodePtr->ancestorPtr->inverseDCJ[ xpos ] == 
+							nodePtr->ancestorPtr->inverseDCJ[ ypos ] && 
+					nodePtr->leftDescPtr->inverseDCJ[ xpos ] == 
+							nodePtr->leftDescPtr->inverseDCJ[ ypos ] && 
+					nodePtr->rightDescPtr->inverseDCJ[ xpos ] == 
+							nodePtr->rightDescPtr->inverseDCJ[ ypos ] ) {
+					continue;
+				}
+
+				allocateMemForCandidate( 
+							phyloTreePtr, &candidateMatrix[ index ][ h ] );
+
+				copyCurrentNodeIntoCandidate( phyloTreePtr,
+							candidateMatrix[ index ][ h ], nodePtr, FALSE );
+				
+				/* apply DCJ on copy and generate candidate */
+				applyDCJ( candidateMatrix[ index ][ h ]->genomeDCJ, 
+						&candidateMatrix[ index ][ h ]->numPointsDCJ, 
+						i, i, TRUE );//--from dcjdist.c
+			
+				calculateInverseGenome( 
+					candidateMatrix[ index ][ h ]->genomeDCJ, 
+					candidateMatrix[ index ][ h ]->numPointsDCJ, 
+					candidateMatrix[ index ][ h ]->inverseDCJ );//--from dcjdist.c
+
+				h++;
+			}
+		}
+
+		/* generate candidates by choosing two different indices: case (1), (2), and (3) */ 
+		for ( i = 0; i < nodePtr->numPointsDCJ - 1; i++ ) {
+			for ( j = i + 1; j < nodePtr->numPointsDCJ; j++ ) {
+				/* calculate position for checking inverses genomes */
+				x = nodePtr->genomeDCJ[ i ]->x;
+				y = nodePtr->genomeDCJ[ i ]->y;
+				xpos = x > 0 ? 2 * x - 1 : 2 * abs( x ) - 2;
+				ypos = y > 0 ? 2 * y - 1 : 2 * abs( y ) - 2;
+
+				/* if adjacency (i->x, i->y) is also a adjacency in ancestor, 
+					left desc., or right desc. do nothing */
+				if ( nodePtr->ancestorPtr->inverseDCJ[ xpos ] == nodePtr->ancestorPtr->inverseDCJ[ ypos ] && 
+					nodePtr->leftDescPtr->inverseDCJ[ xpos ] == nodePtr->leftDescPtr->inverseDCJ[ ypos ] && 
+					nodePtr->rightDescPtr->inverseDCJ[ xpos ] == nodePtr->rightDescPtr->inverseDCJ[ ypos ] ) {
+					continue;
+				}
+
+				/* calculate position for checking inverses genomes */
+				x = nodePtr->genomeDCJ[ j ]->x;
+				y = nodePtr->genomeDCJ[ j ]->y;
+				xpos = x > 0 ? 2 * x - 1 : 2 * abs( x ) - 2;
+				ypos = y > 0 ? 2 * y - 1 : 2 * abs( y ) - 2;
+
+				/* if adjacency (j->x,j->y) is also a adjacency in ancestor, 
+					left desc., or right desc. do nothing */
+				if ( nodePtr->ancestorPtr->inverseDCJ[ xpos ] == nodePtr->ancestorPtr->inverseDCJ[ ypos ] && 
+					nodePtr->leftDescPtr->inverseDCJ[ xpos ] == nodePtr->leftDescPtr->inverseDCJ[ ypos ] && 
+					nodePtr->rightDescPtr->inverseDCJ[ xpos ] == nodePtr->rightDescPtr->inverseDCJ[ ypos ] ) {
+					continue;
+				}
+
+				allocateMemForCandidate( 
+							phyloTreePtr, &candidateMatrix[ index ][ h ] );
+
+				copyCurrentNodeIntoCandidate( phyloTreePtr,
+							candidateMatrix[ index ][ h ], nodePtr, FALSE );
+
+				/* apply DCJ on copy and generate candidate */
+				applyDCJ( candidateMatrix[ index ][ h ]->genomeDCJ, 
+						&candidateMatrix[ index ][ h ]->numPointsDCJ, 
+						i, j, TRUE );//--from dcjdist.c
+				
+				calculateInverseGenome( 
+					candidateMatrix[ index ][ h ]->genomeDCJ, 
+					candidateMatrix[ index ][ h ]->numPointsDCJ, 
+					candidateMatrix[ index ][ h ]->inverseDCJ );//--from dcjdist.c
+
+				h++; 
+
+				/* do the second FORM in case one of the point is a adjacency */
+				if ( nodePtr->genomeDCJ[ i ]->type == ADJACENCY || 
+						nodePtr->genomeDCJ[ j ]->type == ADJACENCY ) {
+
+					allocateMemForCandidate( 
+							phyloTreePtr, &candidateMatrix[ index ][ h ] );
+
+					copyCurrentNodeIntoCandidate( phyloTreePtr,
+							candidateMatrix[ index ][ h ], nodePtr, FALSE );
+
+					/* apply DCJ on copy and generate candidate */
+					applyDCJ( candidateMatrix[ index ][ h ]->genomeDCJ, 
+						&candidateMatrix[ index ][ h ]->numPointsDCJ, 
+						i, j, FALSE );//--from dcjdist.c
+					
+					calculateInverseGenome( 
+						candidateMatrix[ index ][ h ]->genomeDCJ, 
+						candidateMatrix[ index ][ h ]->numPointsDCJ, 
+						candidateMatrix[ index ][ h ]->inverseDCJ );//--from dcjdist.c
+
+					h++;					
+				}
+			}
+		}
+		numCandidates[ index ] = h;
+
+		/* if number of candidates is zero, create just one candidate with current node */
+		if ( numCandidates[ index ] == 0 ) {
+			numCandidates[ index ] = 1;
+
+			allocateMemForCandidate( 
+							phyloTreePtr, &candidateMatrix[ index ][ h ] );
+			copyCurrentNodeIntoCandidate( phyloTreePtr,
+							candidateMatrix[ index ][ h ], nodePtr, TRUE );
+		}
+	}//end-if
+	//NOTE:
+	//memory allocated in this function will be freed 
+	//after the execution of function "selectBestNeighborhood".
+}
+
+static void copyCurrentNodeIntoCandidate( TreePtr phyloTreePtr,
+				CandidatePtr candPtr, TreeNodePtr nodePtr, int copyInverse ) 
+{
+	int k;
+
+	candPtr->numPointsDCJ = nodePtr->numPointsDCJ;
+	for ( k = 0; k < nodePtr->numPointsDCJ; k++ ) {
+		candPtr->genomeDCJ[ k ]->x = nodePtr->genomeDCJ[ k ]->x;
+		candPtr->genomeDCJ[ k ]->y = nodePtr->genomeDCJ[ k ]->y;
+		candPtr->genomeDCJ[ k ]->type = nodePtr->genomeDCJ[ k ]->type;
+	}
+
+	if ( copyInverse == TRUE ) {
+		for ( k = 0; k < 2 * phyloTreePtr->numberGenes; k++ ) {
+			candPtr->inverseDCJ[ k ] = nodePtr->inverseDCJ[ k ];
+		}	
+	}
+}
+
+/* NOTE: in the first call of this procedure, the second argument 
+			must be the right descendant of the starting node */
+static void calculateScoreCandidates( TreePtr phyloTreePtr, 
+						TreeNodePtr nodePtr, int **scoreMatrix, 
+						CandidatePtr **candidateMatrix, 
+						int *numCandidates, ParametersPtr paramsPtr ) 
+{
+
+	int i, j, min_left, min_right, temp, index, index2;
+
+	if ( nodePtr->type == INTERNAL_NODE ) {
+		calculateScoreCandidates( phyloTreePtr, nodePtr->leftDescPtr, 
+					scoreMatrix, candidateMatrix, numCandidates, paramsPtr );
+		calculateScoreCandidates( phyloTreePtr, nodePtr->rightDescPtr,
+					scoreMatrix, candidateMatrix, numCandidates, paramsPtr );
+
+		/* re-calculate index (of internal node) to be zero-based */
+		index = nodePtr->index - phyloTreePtr->numberLeaves;
+
+		/* allocate memory for scoreMatrix[ index ] */
+		scoreMatrix[ index ] = 
+						malloc( numCandidates[ index ] * sizeof( int ) );
+		if ( scoreMatrix[ index ] == NULL )
+			nomemMessage( "scoreMatrix[ index ]" );
+
+		/* calculate min scores of candidates of current node (nodePtr)  */
+		for ( i = 0; i < numCandidates[ index ]; i++ ) {
+			/* calculate min score of candidate "i" regarding LEFT descendant candidates */
+			if ( nodePtr->leftDescPtr->type == LEAF_NODE ) {
+				min_left = DCJdistance( 
+								candidateMatrix[ index ][ i ]->genomeDCJ, 
+								nodePtr->leftDescPtr->genomeDCJ, 
+								candidateMatrix[ index ][ i ]->inverseDCJ,
+								nodePtr->leftDescPtr->inverseDCJ,
+								candidateMatrix[ index ][ i ]->numPointsDCJ, 
+								nodePtr->leftDescPtr->numPointsDCJ,
+								phyloTreePtr->numberGenes );
+			}
+			else { //nodePtr->leftDescPtr->type == INTERNAL_NODE
+				j = 0;
+				index2 = nodePtr->leftDescPtr->index - 
+							phyloTreePtr->numberLeaves;// re-calculate index
+				min_left = scoreMatrix[ index2 ][ j ] + 
+							DCJdistance(
+								candidateMatrix[ index ][ i ]->genomeDCJ, 
+								candidateMatrix[ index2 ][ j ]->genomeDCJ, 
+								candidateMatrix[ index ][ i ]->inverseDCJ,
+								candidateMatrix[ index2 ][ j ]->inverseDCJ,
+								candidateMatrix[ index ][ i ]->numPointsDCJ, 
+								candidateMatrix[ index2 ][ j ]->numPointsDCJ, 
+								phyloTreePtr->numberGenes );
+
+				for ( j = 1; j < numCandidates[ index2 ]; j++ ) {
+					temp = scoreMatrix[ index2 ][ j ] + 
+							DCJdistance(
+								candidateMatrix[ index ][ i ]->genomeDCJ, 
+								candidateMatrix[ index2 ][ j ]->genomeDCJ, 
+								candidateMatrix[ index ][ i ]->inverseDCJ,
+								candidateMatrix[ index2 ][ j ]->inverseDCJ,
+								candidateMatrix[ index ][ i ]->numPointsDCJ, 
+								candidateMatrix[ index2 ][ j ]->numPointsDCJ, 
+								phyloTreePtr->numberGenes );
+
+					if (temp < min_left) {
+						min_left = temp;
+					}
+				}
+			}
+
+			/* calculate min score of candidate "i" regarding RIGHT descendant candidates */
+			if ( nodePtr->rightDescPtr->type == LEAF_NODE ) {
+				min_right = DCJdistance(
+								candidateMatrix[ index ][ i ]->genomeDCJ, 
+								nodePtr->rightDescPtr->genomeDCJ, 
+								candidateMatrix[ index ][ i ]->inverseDCJ,
+								nodePtr->rightDescPtr->inverseDCJ,
+								candidateMatrix[ index ][ i ]->numPointsDCJ, 
+								nodePtr->rightDescPtr->numPointsDCJ,
+								phyloTreePtr->numberGenes );
+			}
+			else { //nodePtr->rightDescPtr->type == INTERNAL_NODE
+				j = 0;
+				index2 = nodePtr->rightDescPtr->index - 
+							phyloTreePtr->numberLeaves;// re-calculate index
+
+				min_right = scoreMatrix[ index2 ][ j ] + 
+							DCJdistance(
+								candidateMatrix[ index ][ i ]->genomeDCJ, 
+								candidateMatrix[ index2 ][ j ]->genomeDCJ, 
+								candidateMatrix[ index ][ i ]->inverseDCJ,
+								candidateMatrix[ index2 ][ j ]->inverseDCJ,
+								candidateMatrix[ index ][ i ]->numPointsDCJ, 
+								candidateMatrix[ index2 ][ j ]->numPointsDCJ, 
+								phyloTreePtr->numberGenes );
+
+				for ( j = 1; j < numCandidates[ index2 ]; j++ ) {
+					temp = scoreMatrix[ index2 ][ j ] + 
+							DCJdistance(
+								candidateMatrix[ index ][ i ]->genomeDCJ, 
+								candidateMatrix[ index2 ][ j ]->genomeDCJ, 
+								candidateMatrix[ index ][ i ]->inverseDCJ,
+								candidateMatrix[ index2 ][ j ]->inverseDCJ,
+								candidateMatrix[ index ][ i ]->numPointsDCJ, 
+								candidateMatrix[ index2 ][ j ]->numPointsDCJ, 
+								phyloTreePtr->numberGenes );
+
+					if (temp < min_right) {
+						min_right = temp;
+					}
+				}
+			}
+
+			scoreMatrix[ index ][ i ] = min_left + min_right + 
+					penalization( candidateMatrix[ index ][ i ]->genomeDCJ, 
+								candidateMatrix[ index ][ i ]->inverseDCJ, 
+								candidateMatrix[ index ][ i ]->numPointsDCJ,
+								paramsPtr );
+
+		} //end-for
+	}
+
+	//NOTE:
+	//memory allocated in this function will be freed 
+	//after the execution of function "selectBestNeighborhood".
+}
+
+/* NOTE: in the first call of this procedure, the second argument 
+			must be the right descendant of the starting node */
+static void selectBestNeighborhood( TreePtr phyloTreePtr, 
+					TreeNodePtr nodePtr, int **scoreMatrix, 
+					CandidatePtr **candidateMatrix, int *numCandidates )
+{
+	int i, k, index, score, newScore, iBest;
+
+	if ( nodePtr->type == INTERNAL_NODE ) {
+		index = nodePtr->index - phyloTreePtr->numberLeaves;
+		
+		i = 0;
+		iBest = i;
+		score = scoreMatrix[ index ][ i ] + 
+				DCJdistance(
+						candidateMatrix[ index ][ i ]->genomeDCJ, 
+						nodePtr->ancestorPtr->genomeDCJ, 
+						candidateMatrix[ index ][ i ]->inverseDCJ,
+						nodePtr->ancestorPtr->inverseDCJ,
+						candidateMatrix[ index ][ i ]->numPointsDCJ, 
+						nodePtr->ancestorPtr->numPointsDCJ,
+						phyloTreePtr->numberGenes );
+
+		for ( i = 1; i < numCandidates[ index ]; i++ ) {
+			newScore = scoreMatrix[ index ][ i ] + 
+						DCJdistance(
+								candidateMatrix[ index ][ i ]->genomeDCJ, 
+								nodePtr->ancestorPtr->genomeDCJ, 
+								candidateMatrix[ index ][ i ]->inverseDCJ,
+								nodePtr->ancestorPtr->inverseDCJ,
+								candidateMatrix[ index ][ i ]->numPointsDCJ, 
+								nodePtr->ancestorPtr->numPointsDCJ,
+								phyloTreePtr->numberGenes );
+			if ( newScore < score ) {
+				score = newScore;
+				iBest = i;
+			}
+		}
+
+		/* copy best candidate found into current node */
+		nodePtr->numPointsDCJ = candidateMatrix[ index ][ iBest ]->numPointsDCJ;
+		for ( k = 0; k < nodePtr->numPointsDCJ; k++ ) {
+			nodePtr->genomeDCJ[ k ]->x = candidateMatrix[ index ][ iBest ]->genomeDCJ[ k ]->x;
+			nodePtr->genomeDCJ[ k ]->y = candidateMatrix[ index ][ iBest ]->genomeDCJ[ k ]->y;
+			nodePtr->genomeDCJ[ k ]->type = candidateMatrix[ index ][ iBest ]->genomeDCJ[ k ]->type;
+		}
+		for ( k = 0; k < 2 * phyloTreePtr->numberGenes; k++ ) {
+			nodePtr->inverseDCJ[ k ] = candidateMatrix[ index ][ iBest ]->inverseDCJ[ k ];
+		}	
+
+		selectBestNeighborhood( phyloTreePtr, nodePtr->leftDescPtr, 
+								scoreMatrix, candidateMatrix, numCandidates );
+		selectBestNeighborhood( phyloTreePtr, nodePtr->rightDescPtr, 
+								scoreMatrix, candidateMatrix, numCandidates );
+	}
+}
+
+
+/**********************************************************************/
+
+/* [-->OPTIMIZER for DCJ distance] 
+	algorithm for labeling and optimizing the score of a tree by 
+	generating candidates (genomes) for all internal nodes using a dynamic
+	programming approach */
+/* NOTE: Implemented as proposed by Kovac (2011) in the paper "A Practical 
+	Algorithm for Ancestral Rearrangement Reconstruction" */
+static int labelOptimizeTree_KovacDCJ_2( 
+			TreePtr phyloTreePtr, int initialize,  ParametersPtr paramsPtr )
+{
+	int i, index;
+	Tree tempTree;
+	int *numCandidates; /* array of num. candidates for each internal node */
+	//int *maxCandidates; /* max. candidates allowed for each internal node */ 
+	int **scoreMatrix;
+	CandidatePtr **candidateMatrix;
+	int score, newScore, improved, numInternalNodes;
+
+	/* allocate memory for temporal tree */
+	tempTree.numberLeaves = phyloTreePtr->numberLeaves;
+	tempTree.numberGenes = phyloTreePtr->numberGenes;
+	allocateMemoryForNodes( &tempTree, paramsPtr );
+	/* allocate memory (just pointers) for matrix of scores and candidates */
+	numInternalNodes = phyloTreePtr->numberNodes - phyloTreePtr->numberLeaves;
+	scoreMatrix = malloc( numInternalNodes * sizeof( int * ) );
+	if ( scoreMatrix == NULL ) 
+		nomemMessage( "scoreMatrix" );  
+	candidateMatrix = malloc ( numInternalNodes * sizeof( CandidatePtr * ) );
+	if ( candidateMatrix == NULL ) 
+		nomemMessage( "candidateMatrix" );
+	/* allocate memory for arrays that saves number of candidates */ 
+	numCandidates = malloc( numInternalNodes * sizeof( int ) );
+	if ( numCandidates == NULL )
+		nomemMessage( "numCandidates" );
+	
+	/* initialize tree */
+	if ( initialize == TRUE ) {
+		if ( paramsPtr->problem == LARGE_PHYLOGENY ) {
+			initializeTreeWithDescendants( phyloTreePtr, 
+			phyloTreePtr->startingNodePtr->rightDescPtr, paramsPtr, GO_LEFT );
+		}
+		else { // SMALL_PHYLOGENY
+			initializeTreeWithDescendantsRandomly( 
+				phyloTreePtr, phyloTreePtr->startingNodePtr->rightDescPtr );
+		}
+	}
+
+	/* label and optimize tree */
+	improved = TRUE;
+	score = scoreTree( phyloTreePtr, 
+					phyloTreePtr->startingNodePtr->rightDescPtr, paramsPtr );
+	while ( improved == TRUE ) {
+		copyTreeInto( &tempTree, phyloTreePtr, FALSE, paramsPtr );
+		generateCandidates( phyloTreePtr, 
+			phyloTreePtr->startingNodePtr->rightDescPtr, 
+			candidateMatrix, numCandidates, paramsPtr );
+		calculateScoreCandidates_2( phyloTreePtr, 
+			phyloTreePtr->startingNodePtr->rightDescPtr, 
+			scoreMatrix, candidateMatrix, numCandidates, paramsPtr );
+		selectBestNeighborhood_2( phyloTreePtr, 
+			phyloTreePtr->startingNodePtr->rightDescPtr, 
+			scoreMatrix, candidateMatrix, numCandidates );
+
+		/* free memory allocated in function "generateCandidates(...)" */
+		for ( index = 0; index < numInternalNodes; index++ ) {
+			for ( i = 0; i < numCandidates[ index ]; i++) {
+				freeCandidate( phyloTreePtr, &candidateMatrix[ index ][ i ] );
+			}
+			free( candidateMatrix[ index ] );
+			free( scoreMatrix[ index ] );
+		}
+
+		/* calculate new score of the tree */
+		newScore = scoreTree( phyloTreePtr, 
+					phyloTreePtr->startingNodePtr->rightDescPtr, paramsPtr );
+		
+		if ( newScore < score ) {
+			score = newScore;
+		}
+		else {
+			improved = FALSE;
+			/* recover last state of tree */
+			copyTreeInto( phyloTreePtr, &tempTree, FALSE, paramsPtr ); 
+		}
+	}
+
+	/* free memory */
+	free( scoreMatrix );
+	free( candidateMatrix );
+	free( numCandidates );
+	freeTree( &tempTree, paramsPtr );//--method from tree.c 
+
+	return score;
+}
+
+/* NOTE: in the first call of this procedure, the second argument 
+			must be the right descendant of the starting node */
+static void calculateScoreCandidates_2( TreePtr phyloTreePtr, 
+	TreeNodePtr nodePtr, int **scoreMatrix, CandidatePtr **candidateMatrix, 
+	int *numCandidates, ParametersPtr paramsPtr )
+{
+	//TO MODIFY ...
+
+	int i, j, min_left, min_right, temp, index, index2;
+
+	if ( nodePtr->type == INTERNAL_NODE ) {
+		calculateScoreCandidates_2( phyloTreePtr, nodePtr->leftDescPtr, 
+					scoreMatrix, candidateMatrix, numCandidates, paramsPtr );
+		calculateScoreCandidates_2( phyloTreePtr, nodePtr->rightDescPtr,
+					scoreMatrix, candidateMatrix, numCandidates, paramsPtr );
+
+		/* re-calculate index (of internal node) to be zero-based */
+		index = nodePtr->index - phyloTreePtr->numberLeaves;
+
+		/* allocate memory for scoreMatrix[ index ] */
+		scoreMatrix[ index ] = 
+						malloc( numCandidates[ index ] * sizeof( int ) );
+		if ( scoreMatrix[ index ] == NULL )
+			nomemMessage( "scoreMatrix[ index ]" );
+
+		/* calculate min scores of candidates of current node (nodePtr)  */
+		for ( i = 0; i < numCandidates[ index ]; i++ ) {
+			/* calculate min score of candidate "i" regarding LEFT descendant candidates */
+			if ( nodePtr->leftDescPtr->type == LEAF_NODE ) {
+				min_left = DCJdistance( 
+								candidateMatrix[ index ][ i ]->genomeDCJ, 
+								nodePtr->leftDescPtr->genomeDCJ, 
+								candidateMatrix[ index ][ i ]->inverseDCJ,
+								nodePtr->leftDescPtr->inverseDCJ,
+								candidateMatrix[ index ][ i ]->numPointsDCJ, 
+								nodePtr->leftDescPtr->numPointsDCJ,
+								phyloTreePtr->numberGenes );
+			}
+			else { //nodePtr->leftDescPtr->type == INTERNAL_NODE
+				j = 0;
+				index2 = nodePtr->leftDescPtr->index - 
+							phyloTreePtr->numberLeaves;// re-calculate index
+				min_left = scoreMatrix[ index2 ][ j ] + 
+							DCJdistance(
+								candidateMatrix[ index ][ i ]->genomeDCJ, 
+								candidateMatrix[ index2 ][ j ]->genomeDCJ, 
+								candidateMatrix[ index ][ i ]->inverseDCJ,
+								candidateMatrix[ index2 ][ j ]->inverseDCJ,
+								candidateMatrix[ index ][ i ]->numPointsDCJ, 
+								candidateMatrix[ index2 ][ j ]->numPointsDCJ, 
+								phyloTreePtr->numberGenes );
+
+				for ( j = 1; j < numCandidates[ index2 ]; j++ ) {
+					temp = scoreMatrix[ index2 ][ j ] + 
+							DCJdistance(
+								candidateMatrix[ index ][ i ]->genomeDCJ, 
+								candidateMatrix[ index2 ][ j ]->genomeDCJ, 
+								candidateMatrix[ index ][ i ]->inverseDCJ,
+								candidateMatrix[ index2 ][ j ]->inverseDCJ,
+								candidateMatrix[ index ][ i ]->numPointsDCJ, 
+								candidateMatrix[ index2 ][ j ]->numPointsDCJ, 
+								phyloTreePtr->numberGenes );
+
+					if (temp < min_left) {
+						min_left = temp;
+					}
+				}
+			}
+
+			/* calculate min score of candidate "i" regarding RIGHT descendant candidates */
+			if ( nodePtr->rightDescPtr->type == LEAF_NODE ) {
+				min_right = DCJdistance(
+								candidateMatrix[ index ][ i ]->genomeDCJ, 
+								nodePtr->rightDescPtr->genomeDCJ, 
+								candidateMatrix[ index ][ i ]->inverseDCJ,
+								nodePtr->rightDescPtr->inverseDCJ,
+								candidateMatrix[ index ][ i ]->numPointsDCJ, 
+								nodePtr->rightDescPtr->numPointsDCJ,
+								phyloTreePtr->numberGenes );
+			}
+			else { //nodePtr->rightDescPtr->type == INTERNAL_NODE
+				j = 0;
+				index2 = nodePtr->rightDescPtr->index - 
+							phyloTreePtr->numberLeaves;// re-calculate index
+
+				min_right = scoreMatrix[ index2 ][ j ] + 
+							DCJdistance(
+								candidateMatrix[ index ][ i ]->genomeDCJ, 
+								candidateMatrix[ index2 ][ j ]->genomeDCJ, 
+								candidateMatrix[ index ][ i ]->inverseDCJ,
+								candidateMatrix[ index2 ][ j ]->inverseDCJ,
+								candidateMatrix[ index ][ i ]->numPointsDCJ, 
+								candidateMatrix[ index2 ][ j ]->numPointsDCJ, 
+								phyloTreePtr->numberGenes );
+
+				for ( j = 1; j < numCandidates[ index2 ]; j++ ) {
+					temp = scoreMatrix[ index2 ][ j ] + 
+							DCJdistance(
+								candidateMatrix[ index ][ i ]->genomeDCJ, 
+								candidateMatrix[ index2 ][ j ]->genomeDCJ, 
+								candidateMatrix[ index ][ i ]->inverseDCJ,
+								candidateMatrix[ index2 ][ j ]->inverseDCJ,
+								candidateMatrix[ index ][ i ]->numPointsDCJ, 
+								candidateMatrix[ index2 ][ j ]->numPointsDCJ, 
+								phyloTreePtr->numberGenes );
+
+					if (temp < min_right) {
+						min_right = temp;
+					}
+				}
+			}
+
+			scoreMatrix[ index ][ i ] = min_left + min_right + 
+					penalization( candidateMatrix[ index ][ i ]->genomeDCJ, 
+								candidateMatrix[ index ][ i ]->inverseDCJ, 
+								candidateMatrix[ index ][ i ]->numPointsDCJ,
+								paramsPtr );
+
+		} //end-for
+	}
+
+	//NOTE:
+	//memory allocated in this function will be freed 
+	//after the execution of function "selectBestNeighborhood".
+}
+
+/* NOTE: in the first call of this procedure, the second argument 
+			must be the right descendant of the starting node */
+static void selectBestNeighborhood_2( TreePtr phyloTreePtr, 
+					TreeNodePtr nodePtr, int **scoreMatrix, 
+					CandidatePtr **candidateMatrix, int *numCandidates )
+{
+
+
+	//TO MODIFY ...
+
+
+
+}
+
+/**********************************************************************/
 
 /* Score a tree using some metric. 
 * The input (second parameter: nodePtr), 
