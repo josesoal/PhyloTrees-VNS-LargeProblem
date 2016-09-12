@@ -710,6 +710,7 @@ int createInitialTreeTopology( TreePtr phyloTreePtr, ParametersPtr paramsPtr )
 
         copyTreeInto( &temporalTree1, phyloTreePtr, TRUE, paramsPtr );//make a fresh copy
         createTreeRandomLeaf_FirstBestEdge( &temporalTree1, paramsPtr );
+
         score = labelOptimizeTree( &temporalTree1, paramsPtr );//from iterate_tree.c
         if ( DEBUG ){ printf( "[Initial tree score: %d]\n",score ); }
 
@@ -842,7 +843,6 @@ static void createTreeRandomLeaf_FirstBestEdge( TreePtr phyloTreePtr, Parameters
 			/* link to the temporal node instead of node 3 */
 			internalNodePtr->rightDescPtr = nodeTmpPtr;
 			nodeTmpPtr->ancestorPtr = internalNodePtr;
-
 			newScore = labelOptimizeTree( phyloTreePtr, paramsPtr );//--from iterate_tree.c
 
 			if ( newScore < score ) {

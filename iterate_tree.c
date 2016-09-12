@@ -797,7 +797,7 @@ static void freeCandidate( TreePtr phyloTreePtr, CandidatePtr *candPtr )
 static int labelOptimizeTree_KovacDCJ( 
 			TreePtr phyloTreePtr, int initialize,  ParametersPtr paramsPtr )
 {
-	int i, index;
+	int i, index, real_i;
 	Tree tempTree;
 	int *numCandidates; /* array of num. candidates for each internal node */
 	//int *maxCandidates; /* max. candidates allowed for each internal node */ 
@@ -838,6 +838,7 @@ static int labelOptimizeTree_KovacDCJ(
 	improved = TRUE;
 	score = scoreTree( phyloTreePtr, 
 					phyloTreePtr->startingNodePtr->rightDescPtr, paramsPtr );
+
 	while ( improved == TRUE ) {
 		copyTreeInto( &tempTree, phyloTreePtr, FALSE, paramsPtr );
 		generateCandidates( phyloTreePtr, 
@@ -852,11 +853,16 @@ static int labelOptimizeTree_KovacDCJ(
 
 		/* free memory allocated in function "generateCandidates(...)" */
 		for ( index = 0; index < numInternalNodes; index++ ) {
-			for ( i = 0; i < numCandidates[ index ]; i++) {
-				freeCandidate( phyloTreePtr, &candidateMatrix[ index ][ i ] );
+			real_i = index + phyloTreePtr->numberLeaves;
+			/* free just those that are being used, that is those 
+				that were allocated */
+			if ( phyloTreePtr->nodesPtrArray[ real_i ]->avaliable == FALSE ) {
+				for ( i = 0; i < numCandidates[ index ]; i++) {
+					freeCandidate( phyloTreePtr, &candidateMatrix[ index ][ i ] );
+				}
+				free( candidateMatrix[ index ] );
+				free( scoreMatrix[ index ] );	
 			}
-			free( candidateMatrix[ index ] );
-			free( scoreMatrix[ index ] );
 		}
 
 		/* calculate new score of the tree */
