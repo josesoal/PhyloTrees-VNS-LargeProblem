@@ -58,6 +58,14 @@ static void freeCandidate( TreePtr phyloTreePtr, CandidatePtr *candPtr );
 
 /**********************************************************************/
 
+static int labelOptimizeTree_KovacDCJ_2( 
+			TreePtr phyloTreePtr, int initialize,  ParametersPtr paramsPtr );
+static void calculateScoreCandidates_2( TreePtr phyloTreePtr, 
+	TreeNodePtr nodePtr, int **scoreMatrix, CandidatePtr **candidateMatrix, 
+	int *numCandidates, ParametersPtr paramsPtr );
+static void selectBestNeighborhood_2( 
+	TreePtr phyloTreePtr, TreeNodePtr nodePtr, int **scoreMatrix, 
+	CandidatePtr **candidateMatrix, int *numCandidates, int bestCand );
 
 
 
@@ -77,6 +85,8 @@ int labelOptimizeTree( TreePtr phyloTreePtr, ParametersPtr paramsPtr )
 			initialize = TRUE;
 			score = labelOptimizeTree_KovacDCJ( 
 									phyloTreePtr, initialize, paramsPtr);
+			//score = labelOptimizeTree_KovacDCJ_2( 
+			//						phyloTreePtr, initialize, paramsPtr);
 		}
 		else if ( paramsPtr->opt == HERENCSAR ) {
 			//initialize = TRUE;
@@ -1279,8 +1289,6 @@ static void selectBestNeighborhood( TreePtr phyloTreePtr,
 	algorithm for labeling and optimizing the score of a tree by 
 	generating candidates (genomes) for all internal nodes using a dynamic
 	programming approach */
-/* NOTE: Implemented as proposed by Kovac (2011) in the paper "A Practical 
-	Algorithm for Ancestral Rearrangement Reconstruction" */
 static int labelOptimizeTree_KovacDCJ_2( 
 			TreePtr phyloTreePtr, int initialize,  ParametersPtr paramsPtr )
 {
@@ -1333,9 +1341,8 @@ static int labelOptimizeTree_KovacDCJ_2(
 		calculateScoreCandidates_2( phyloTreePtr, 
 			phyloTreePtr->startingNodePtr->rightDescPtr, 
 			scoreMatrix, candidateMatrix, numCandidates, paramsPtr );
-		selectBestNeighborhood_2( phyloTreePtr, 
-			phyloTreePtr->startingNodePtr->rightDescPtr, 
-			scoreMatrix, candidateMatrix, numCandidates );
+		selectBestNeighborhood_2( phyloTreePtr, phyloTreePtr->startingNodePtr, 
+			scoreMatrix, candidateMatrix, numCandidates, -1 );
 
 		/* free memory allocated in function "generateCandidates(...)" */
 		for ( index = 0; index < numInternalNodes; index++ ) {
@@ -1375,9 +1382,7 @@ static void calculateScoreCandidates_2( TreePtr phyloTreePtr,
 	TreeNodePtr nodePtr, int **scoreMatrix, CandidatePtr **candidateMatrix, 
 	int *numCandidates, ParametersPtr paramsPtr )
 {
-	//TO MODIFY ...
-
-	int i, j, min_left, min_right, temp, index, index2;
+	int i, j, min_left, min_right, temp, index, index2, bestIndex;
 
 	if ( nodePtr->type == INTERNAL_NODE ) {
 		calculateScoreCandidates_2( phyloTreePtr, nodePtr->leftDescPtr, 
@@ -1406,6 +1411,8 @@ static void calculateScoreCandidates_2( TreePtr phyloTreePtr,
 								candidateMatrix[ index ][ i ]->numPointsDCJ, 
 								nodePtr->leftDescPtr->numPointsDCJ,
 								phyloTreePtr->numberGenes );
+
+				candidateMatrix[ index ][ i ]->leftBestDesc = -1;
 			}
 			else { //nodePtr->leftDescPtr->type == INTERNAL_NODE
 				j = 0;
@@ -1420,6 +1427,7 @@ static void calculateScoreCandidates_2( TreePtr phyloTreePtr,
 								candidateMatrix[ index ][ i ]->numPointsDCJ, 
 								candidateMatrix[ index2 ][ j ]->numPointsDCJ, 
 								phyloTreePtr->numberGenes );
+				bestIndex = j;
 
 				for ( j = 1; j < numCandidates[ index2 ]; j++ ) {
 					temp = scoreMatrix[ index2 ][ j ] + 
@@ -1434,8 +1442,11 @@ static void calculateScoreCandidates_2( TreePtr phyloTreePtr,
 
 					if (temp < min_left) {
 						min_left = temp;
+						bestIndex = j;
 					}
 				}
+
+				candidateMatrix[ index ][ i ]->leftBestDesc = bestIndex;
 			}
 
 			/* calculate min score of candidate "i" regarding RIGHT descendant candidates */
@@ -1448,6 +1459,8 @@ static void calculateScoreCandidates_2( TreePtr phyloTreePtr,
 								candidateMatrix[ index ][ i ]->numPointsDCJ, 
 								nodePtr->rightDescPtr->numPointsDCJ,
 								phyloTreePtr->numberGenes );
+
+				candidateMatrix[ index ][ i ]->rightBestDesc = -1;
 			}
 			else { //nodePtr->rightDescPtr->type == INTERNAL_NODE
 				j = 0;
@@ -1463,6 +1476,7 @@ static void calculateScoreCandidates_2( TreePtr phyloTreePtr,
 								candidateMatrix[ index ][ i ]->numPointsDCJ, 
 								candidateMatrix[ index2 ][ j ]->numPointsDCJ, 
 								phyloTreePtr->numberGenes );
+				bestIndex = j;
 
 				for ( j = 1; j < numCandidates[ index2 ]; j++ ) {
 					temp = scoreMatrix[ index2 ][ j ] + 
@@ -1477,8 +1491,11 @@ static void calculateScoreCandidates_2( TreePtr phyloTreePtr,
 
 					if (temp < min_right) {
 						min_right = temp;
+						bestIndex = j;
 					}
 				}
+
+				candidateMatrix[ index ][ i ]->rightBestDesc = bestIndex;
 			}
 
 			scoreMatrix[ index ][ i ] = min_left + min_right + 
@@ -1495,18 +1512,76 @@ static void calculateScoreCandidates_2( TreePtr phyloTreePtr,
 	//after the execution of function "selectBestNeighborhood".
 }
 
-/* NOTE: in the first call of this procedure, the second argument 
-			must be the right descendant of the starting node */
-static void selectBestNeighborhood_2( TreePtr phyloTreePtr, 
-					TreeNodePtr nodePtr, int **scoreMatrix, 
-					CandidatePtr **candidateMatrix, int *numCandidates )
+/* NOTE: in the first call of this procedure, the second argument must be 
+	the starting node, and the value of parameter bestCand must be -1 */
+static void selectBestNeighborhood_2( 
+	TreePtr phyloTreePtr, TreeNodePtr nodePtr, int **scoreMatrix, 
+	CandidatePtr **candidateMatrix, int *numCandidates, int bestCand )
 {
+	int j, k, index, min_right, bestIndex, temp;
 
+	if ( nodePtr->type == INTERNAL_NODE ) {
+		index = nodePtr->index - phyloTreePtr->numberLeaves;
+		/* copy best candidate into node */
+		nodePtr->numPointsDCJ = 
+					candidateMatrix[ index ][ bestCand ]->numPointsDCJ;
+		for ( k = 0; k < nodePtr->numPointsDCJ; k++ ) {
+			nodePtr->genomeDCJ[ k ]->x = 
+				candidateMatrix[ index ][ bestCand ]->genomeDCJ[ k ]->x;
+			nodePtr->genomeDCJ[ k ]->y = 
+				candidateMatrix[ index ][ bestCand ]->genomeDCJ[ k ]->y;
+			nodePtr->genomeDCJ[ k ]->type = 
+				candidateMatrix[ index ][ bestCand ]->genomeDCJ[ k ]->type;
+		}
+		for ( k = 0; k < 2 * phyloTreePtr->numberGenes; k++ ) {
+			nodePtr->inverseDCJ[ k ] = 
+				candidateMatrix[ index ][ bestCand ]->inverseDCJ[ k ];
+		}	
+		/* select best candidates of descendants */
+		selectBestNeighborhood_2( phyloTreePtr, nodePtr->leftDescPtr, 
+						scoreMatrix, candidateMatrix, numCandidates, 
+						candidateMatrix[ index ][ bestCand ]->leftBestDesc );
+		selectBestNeighborhood_2( phyloTreePtr, nodePtr->rightDescPtr, 
+						scoreMatrix, candidateMatrix, numCandidates,
+						candidateMatrix[ index ][ bestCand ]->rightBestDesc );
+	}
+	else if ( phyloTreePtr->startingNodePtr == nodePtr ) {
 
-	//TO MODIFY ...
+		/* select best candidate of right desc of starting node */
+		index = nodePtr->rightDescPtr->index - phyloTreePtr->numberLeaves;
 
+		j = 0;
+		min_right = scoreMatrix[ index ][ j ] + 
+					DCJdistance(
+						nodePtr->genomeDCJ, 
+						candidateMatrix[ index ][ j ]->genomeDCJ, 
+						nodePtr->inverseDCJ,
+						candidateMatrix[ index ][ j ]->inverseDCJ,
+						nodePtr->numPointsDCJ, 
+						candidateMatrix[ index ][ j ]->numPointsDCJ, 
+						phyloTreePtr->numberGenes );
+		bestIndex = j;
 
+		for ( j = 1; j < numCandidates[ index ]; j++ ) {
+			temp = scoreMatrix[ index ][ j ] + 
+					DCJdistance(
+						nodePtr->genomeDCJ, 
+						candidateMatrix[ index ][ j ]->genomeDCJ, 
+						nodePtr->inverseDCJ,
+						candidateMatrix[ index ][ j ]->inverseDCJ,
+						nodePtr->numPointsDCJ, 
+						candidateMatrix[ index ][ j ]->numPointsDCJ, 
+						phyloTreePtr->numberGenes );
 
+			if (temp < min_right) {
+				min_right = temp;
+				bestIndex = j;
+			}
+		}
+
+		selectBestNeighborhood_2( phyloTreePtr, nodePtr->rightDescPtr, 
+					scoreMatrix, candidateMatrix, numCandidates, bestIndex );
+	}
 }
 
 /**********************************************************************/
@@ -1519,7 +1594,8 @@ int scoreTree( TreePtr phyloTreePtr, TreeNodePtr nodePtr, ParametersPtr paramsPt
 	/* NOTE:
 	* All nodes, except the starting node, have an EDGE with its ancestor.
 	* Indeed, the STARTING node is the only node without ancestor. 
-	* So, we have N-1 edges with each node representing an EDGE, where N is the number of nodes */
+	* So, we have N-1 edges with each node representing an EDGE, 
+	* where N is the number of nodes */
 
 	int distance;
 
