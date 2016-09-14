@@ -26,6 +26,8 @@ void allocateMemoryForNodes( TreePtr phyloTreePtr, ParametersPtr paramsPtr );
 void freeTree( TreePtr phyloTreePtr, ParametersPtr paramsPtr );
 void copyTreeInto( TreePtr phyloTree1Ptr, 
 	TreePtr phyloTree2Ptr, int copyStructure, ParametersPtr paramsPtr);
+void readNumberLeavesAndGenes( 
+    TreePtr phyloTreePtr, ParametersPtr paramsPtr, RawDatasetPtr rdatasetPtr ); 
 void readGenomesFromRawData( 
     TreePtr phyloTreePtr, ParametersPtr paramsPtr, RawDatasetPtr rdatasetPtr );
 void createTopologyFromNewickFormat( TreePtr phyloTreePtr, ParametersPtr paramsPtr );

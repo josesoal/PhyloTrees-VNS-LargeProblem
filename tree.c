@@ -279,6 +279,49 @@ void copyTreeInto( TreePtr phyloTree1Ptr,
     }
 }
 
+void readNumberLeavesAndGenes( 
+    TreePtr phyloTreePtr, ParametersPtr paramsPtr, RawDatasetPtr rdatasetPtr ) 
+{
+    int i, j, numberLeaves, unique; 
+    int *visited;
+
+    if ( paramsPtr->useMultipleGenomesOneLeaf == TRUE ) {
+        visited = malloc( rdatasetPtr->numberGenomes * sizeof( int ) );
+        for ( i = 0; i < rdatasetPtr->numberGenomes; i++ ) { 
+            visited[ i ] = FALSE; 
+        }
+
+        /* count number of different leaves */
+        numberLeaves = 0;
+        for ( i = 0; i < rdatasetPtr->numberGenomes; i++ ) {
+            unique = TRUE;
+            for ( j = 0; j < rdatasetPtr->numberGenomes; j++ ) {
+                if ( i != j && 
+                    strcmp( rdatasetPtr->rgenomePtrArray[ i ]->organism,
+                    rdatasetPtr->rgenomePtrArray[ j ]->organism ) == 0 &&
+                    visited[ j ] == TRUE ) 
+                {
+                    unique = FALSE;
+                    break;
+                }
+            }
+            visited[ i ] = TRUE;
+            if ( unique == TRUE ) {
+                numberLeaves++;
+            }              
+        }
+
+        phyloTreePtr->numberLeaves = numberLeaves;
+        phyloTreePtr->numberGenes = rdatasetPtr->numberGenes;
+
+        free( visited );
+    }
+    else { //useMultipleGenomesOneLeaf == FALSE
+        phyloTreePtr->numberLeaves = rdatasetPtr->numberGenomes;
+        phyloTreePtr->numberGenes = rdatasetPtr->numberGenes;
+    }
+}
+
 void readGenomesFromRawData( 
     TreePtr phyloTreePtr, ParametersPtr paramsPtr, RawDatasetPtr rdatasetPtr ) 
 {

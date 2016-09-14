@@ -57,8 +57,7 @@ int main( int argc, char **argv )
     condenseGenomes( &rdataset, &setkeys );//--from condense.c
 
     /* read genomes from raw data into phylogenetic tree */
-    phyloTree.numberLeaves = rdataset.numberGenomes;
-    phyloTree.numberGenes = rdataset.numberGenes; 
+    readNumberLeavesAndGenes( &phyloTree, &params, &rdataset );//--from tree.c 
     allocateMemoryForNodes( &phyloTree, &params );//--from tree.c
     readGenomesFromRawData( &phyloTree, &params, &rdataset );//--from tree.c 
 
@@ -97,8 +96,7 @@ static void initParameters( ParametersPtr paramsPtr )
     paramsPtr->preferredType    = ANY;
     paramsPtr->initMethod       = R_LEAF_1BEST_EDGE;
     paramsPtr->opt              = BLANCHETTE; // (*)
-    //opt = KOVAC (rev dist); //super slow, not good results (worst than BLANCHETTE)
-    //opt = GREEDY_CANDIDATES (rev dist); // is slow, "almost" the same results as BLANCHETTE
+    paramsPtr->useMultipleGenomesOneLeaf = FALSE;
 }
 
 static void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
@@ -113,22 +111,24 @@ static void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
         fprintf( stdout, "\t\t -d rev : reversal\n\t\t -d dcj : double-cut-join\n");
         fprintf( stdout, "\t-f : dataset filename\n" );
         fprintf( stdout, "\t\t -f filename\n" );
-        fprintf( stdout, "\t-o : optimization method for DCJ [optional]\n" );
-        fprintf( stdout, "\t\t -o 0 : Greedy Candidates opt.\n" );
-        fprintf( stdout, "\t\t -o 1 : Kovac opt.\n" );
-        fprintf( stdout, "\t\t( Greedy Candidates opt is used by default if option is omitted)\n" );
+        fprintf( stdout, "\t-o : [optional] optimization method for DCJ\n" );
+        fprintf( stdout, "\t\t -o gre : Greedy Candidates opt.\n" );
+        fprintf( stdout, "\t\t -o kov : Kovac opt.\n" );
+        fprintf( stdout, "\t\t(Greedy Candidates opt is used by default if option is omitted)\n" );
         fprintf( stdout, "\t-s : seed [optional]\n" );
         fprintf( stdout, "\t\t -s some_seed\n" );
         fprintf( stdout, "\t\t(seed taken from system time by default if option is omitted)\n" );
-        fprintf( stdout, "\t-g : use an outgroup [optional]\n" );
+        fprintf( stdout, "\t-g : [optional] use an outgroup\n" );
         fprintf( stdout, "\t\t -g outgroup\n" );
         fprintf( stdout, "\t\t(outgroup is not used by default if option is omitted).\n" );
+        fprintf( stdout, "\t-r : [optional] preferred dcj genome structure \n" );
         fprintf( stdout, "\t\t -r 0 : any genome structure\n" );
         fprintf( stdout, "\t\t -r 1 : one circular chromosome\n" );
         fprintf( stdout, "\t\t -r 2 : one or more linear chromosomes\n" );    
         fprintf( stdout, "\t\t -r 3 : one circular, or one or more linear chromosomes\n" );
-        fprintf( stdout, "\t\t( -r 0 is used by default if option is omitted)\n\n" );
-        
+        fprintf( stdout, "\t\t( -r 0 is used by default if option is omitted)\n" );
+        fprintf( stdout, "\t-v: [optional] alternative multiple genomes for DCJ.\n" );
+        fprintf( stdout, "\t\t(this option is not used if omitted)\n\n" );
         //fprintf( stdout, " using the default testset: testsets/camp05_cond\n" );
         //fprintf( stdout, " try other >> ./main -t testsets/camp07_cond\n" );
         exit( EXIT_FAILURE );
@@ -158,10 +158,10 @@ static void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
                     paramsPtr->testsetName = argv[ i + 1 ]; 
                     break;
                 case 'o':
-                    if ( strcmp( argv[ i + 1 ], "0" ) == 0 ) {
+                    if ( strcmp( argv[ i + 1 ], "gre" ) == 0 ) {
                         paramsPtr->opt = GREEDY_CANDIDATES;
                     }
-                    else if ( strcmp( argv[ i + 1 ], "1" ) == 0 ) {
+                    else if ( strcmp( argv[ i + 1 ], "kov" ) == 0 ) {
                         paramsPtr->opt = KOVAC;
                     }
                     else {
@@ -197,6 +197,9 @@ static void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
                         exit( EXIT_FAILURE ); 
                     }
                     break;
+                case 'v':
+                    paramsPtr->useMultipleGenomesOneLeaf = TRUE;
+                    break;
                 default:
                     fprintf( stderr, " stderr: incorrect option: %c.\n", option );
                     exit( EXIT_FAILURE );
@@ -215,6 +218,14 @@ static void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
         fprintf( stderr, 
             " stderr: the program does not support using the reversal" );
         fprintf( stderr, " distance and a preferred genome structure.\n" );
+        exit( EXIT_FAILURE );
+    }
+
+    if ( paramsPtr->distanceType == INVERSION_DIST && 
+            paramsPtr->useMultipleGenomesOneLeaf == TRUE ) {
+        fprintf( stderr, 
+            " stderr: the program does not support using the reversal" );
+        fprintf( stderr, " distance and alternative multiple genomes for a leaf.\n" );
         exit( EXIT_FAILURE );
     }
 }
