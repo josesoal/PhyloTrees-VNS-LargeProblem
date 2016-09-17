@@ -282,11 +282,13 @@ void copyTreeInto( TreePtr phyloTree1Ptr,
 void readNumberLeavesAndGenes( 
     TreePtr phyloTreePtr, ParametersPtr paramsPtr, RawDatasetPtr rdatasetPtr ) 
 {
-    int i, j, numberLeaves, unique; 
+    int i, j, numberLeaves, count; 
     int *visited;
 
     if ( paramsPtr->useMultipleGenomesOneLeaf == TRUE ) {
         visited = malloc( rdatasetPtr->numberGenomes * sizeof( int ) );
+        if ( visited == NULL )
+            nomemMessage( "visited" );
         for ( i = 0; i < rdatasetPtr->numberGenomes; i++ ) { 
             visited[ i ] = FALSE; 
         }
@@ -294,19 +296,19 @@ void readNumberLeavesAndGenes(
         /* count number of different leaves */
         numberLeaves = 0;
         for ( i = 0; i < rdatasetPtr->numberGenomes; i++ ) {
-            unique = TRUE;
+            count = TRUE;
             for ( j = 0; j < rdatasetPtr->numberGenomes; j++ ) {
                 if ( i != j && 
                     strcmp( rdatasetPtr->rgenomePtrArray[ i ]->organism,
                     rdatasetPtr->rgenomePtrArray[ j ]->organism ) == 0 &&
                     visited[ j ] == TRUE ) 
                 {
-                    unique = FALSE;
+                    count = FALSE;
                     break;
                 }
             }
             visited[ i ] = TRUE;
-            if ( unique == TRUE ) {
+            if ( count == TRUE ) {
                 numberLeaves++;
             }              
         }
@@ -316,25 +318,143 @@ void readNumberLeavesAndGenes(
 
         free( visited );
     }
-    else { //useMultipleGenomesOneLeaf == FALSE
+    else { //use one genome per leaf
         phyloTreePtr->numberLeaves = rdatasetPtr->numberGenomes;
         phyloTreePtr->numberGenes = rdatasetPtr->numberGenes;
     }
 }
 
-void readGenomesFromRawData( 
-    TreePtr phyloTreePtr, ParametersPtr paramsPtr, RawDatasetPtr rdatasetPtr ) 
+void readGenomesFromRawData( TreePtr phyloTreePtr, ParametersPtr paramsPtr, 
+            RawDatasetPtr rdatasetPtr, MultipleLeafPtr *multiple ) 
 {
     if ( paramsPtr->distanceType == INVERSION_DIST ) {
         readGenomes( phyloTreePtr, rdatasetPtr );
     }
     else if ( paramsPtr->distanceType == DCJ_DIST ) {
-        readGenomesDCJ( phyloTreePtr, rdatasetPtr );        
+        if ( paramsPtr->useMultipleGenomesOneLeaf == TRUE ) {
+            multiple = malloc( 
+                phyloTreePtr->numberLeaves * sizeof( MultipleLeaf ) );
+            if ( multiple == NULL )
+                nomemMessage( "multiple" );
+
+            countGenomesPerLeaf( phyloTreePtr, rdatasetPtr, multiple );
+            allocateMemoryForLeafCandidates( phyloTreePtr, multiple );
+
+            //CONTINUE HERE
+            readGenomesDCJ_MultiLeaf( phyloTreePtr, rdatasetPtr,
+                            numLeafCandidates, leafCandidatesPtr );
+
+            /* multiple is freed in function "freeMultipleLeafs()" */
+        }
+        else { //use one genome per leaf
+            readGenomesDCJ( phyloTreePtr, rdatasetPtr );  
+        }
     }
     else {
-        fprintf( stderr, " stderr: incorrect distance [readGenomesFromRawData(...)].\n" );
+        fprintf( stderr, 
+            " stderr: incorrect distance [readGenomesFromRawData(...)].\n" );
         exit( EXIT_FAILURE );
     }
+}
+
+static void countGenomesPerLeaf( TreePtr phyloTreePtr, 
+                RawDatasetPtr rdatasetPtr, MultipleLeafPtr *multiple )
+{
+    int i , j, count, index, advanceIndex;
+    int *visited;
+
+    visited = malloc( rdatasetPtr->numberGenomes * sizeof( int ) );
+    if ( visited == NULL )
+            nomemMessage( "visited" );
+    for ( i = 0; i < rdatasetPtr->numberGenomes; i++ ) { 
+        visited[ i ] = FALSE; 
+    }
+
+    for ( i = 0; i < phyloTreePtr->numberLeaves; i++ ) {
+        multiple[ i ]->numLeafCandidates = 0;
+    }
+
+    /* count just multiple genomes per leaf */
+    index = 0;
+    for ( i = 0; i < rdatasetPtr->numberGenomes; i++ ) {
+        count = 0;
+        advanceIndex = TRUE;
+        /* verify that genome "i" is part of a set of multiple genomes */
+        for ( j = 0; j < rdatasetPtr->numberGenomes; j++ ) {
+            if ( i != j && 
+                strcmp( rdatasetPtr->rgenomePtrArray[ i ]->organism,
+                rdatasetPtr->rgenomePtrArray[ j ]->organism ) == 0 )    
+            {
+                if ( visited[ j ] == FALSE ) {
+                    count++;
+                    visited[ j ] = TRUE;
+                }
+                else {
+                    advanceIndex = FALSE;
+                    break;
+                }         
+            }
+        }
+
+        visited[ i ] = TRUE;
+
+        if ( count > 0 ) {
+            /* number of candidates are "count" + 1 ( we use +1, because 
+                the genome at "i" index was not count ) */
+            multiple[ index ]->numLeafCandidates = count + 1;
+        }
+
+        if ( advanceIndex == TRUE )
+            index++;
+    }
+
+    free( visited );
+}
+
+void allocateMemoryForLeafCandidates( 
+                TreePtr phyloTreePtr, MultipleLeafPtr *multiple )
+{
+    int i;
+
+    for ( i = 0; i < phyloTreePtr->numberLeaves; i++ ) {
+        if ( multiple[ i ]->numLeafCandidates > 0 ) {
+            multiple[ i ]->candidatesPtrArray = 
+                        malloc( multiple[ i ]->numLeafCandidates * 
+                                                sizeof( CandidatePtr ) );
+            if ( multiple[ i ]->candidatesPtrArray == NULL )
+                nomemMessage( "multiple[ i ]->candidatesPtrArray" );
+
+            for ( j = 0; j < multiple[ i ]->numLeafCandidates; j++) {
+                multiple[ i ]->candidatesPtrArray[ j ] = 
+                                            malloc( sizeof( Candidate ) );
+                if ( multiple[ i ]->candidatesPtrArray[ j ] == NULL )
+                    nomemMessage( "multiple[ i ]->candidatesPtrArray[ j ]" );
+            }
+        }
+        else {
+            multiple[ i ]->candidatesPtrArray = NULL;
+        }
+    }
+
+}
+
+void freeMultipleLeafs( TreePtr phyloTreePtr, MultipleLeafPtr *multiple )
+{
+    int i, j;
+
+    if ( paramsPtr->useMultipleGenomesOneLeaf == TRUE ){    
+        
+        for ( i = 0; i < phyloTreePtr->numberLeaves; i++ ) {
+            if ( multiple[ i ]->numLeafCandidates > 0 ) {
+                for ( j = 0; j < multiple[ i ]->numLeafCandidates; j++) {
+                    free( multiple[ i ]->candidatesPtrArray[ j ] );
+                }
+                free( multiple[ i ]->candidatesPtrArray );                
+            }
+        }
+        free( multiple );
+    }
+    
 }
 
 static void readGenomes( TreePtr phyloTreePtr, RawDatasetPtr rdatasetPtr )
@@ -440,6 +560,44 @@ static void readGenomesDCJ( TreePtr phyloTreePtr, RawDatasetPtr rdatasetPtr )
             phyloTreePtr->nodesPtrArray[ i ]->inverseDCJ );
         
     }//end-for
+}
+
+static void readGenomesDCJ_MultiLeaf( TreePtr phyloTreePtr,
+    RawDatasetPtr rdatasetPtr, int *numLeafCandidates, CandidatePtr **leafCandidatesPtr )
+{
+    int i, j, k, unique;
+    int *visited;
+
+
+    visited = malloc( rdatasetPtr->numberGenomes * sizeof( int ) );
+    for ( i = 0; i < rdatasetPtr->numberGenomes; i++ ) { 
+        visited[ i ] = FALSE; 
+    }
+
+    for ( i = 0; i < rdatasetPtr->numberGenomes; i++ ) {
+        unique = TRUE;
+        for ( j = 0; j < rdatasetPtr->numberGenomes; j++ ) {
+            if ( i != j && 
+                strcmp( rdatasetPtr->rgenomePtrArray[ i ]->organism,
+                rdatasetPtr->rgenomePtrArray[ j ]->organism ) == 0 )    
+            {
+                unique = FALSE;
+                break;
+            }
+        }
+        if ( unique == TRUE ) {
+            convertRawGenomeIntoDCJ_LeafNode(); 
+        }
+        else { //is not unique
+            convertRawGenomeIntoDCJ_LeafCandidate();
+            if ( visited[ j ] == FALSE ) {
+                convertRawGenomeIntoDCJ_LeafNode();
+            }
+        } 
+        visited[ i ] = TRUE;             
+    }
+
+    free( visited );
 }
 
 /* IMPORTANT NOTE: This function is used just for the Small-Phylogny case */

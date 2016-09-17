@@ -78,6 +78,14 @@ struct candidate {
 typedef struct candidate Candidate;
 typedef Candidate 		*CandidatePtr;
 
+/* this struct is used for multiple genomes per leaf */
+struct multipleLeaf {
+	int 			numLeafCandidates;
+	CandidatePtr 	*candidatesPtrArray;
+};
+typedef struct multipleLeaf MultipleLeaf;
+typedef MultipleLeaf 		*MultipleLeafPtr;
+
 struct treeNode{
 	int 				id;
 	int 				index;			/* index at the nodesPtrArray */

@@ -39,6 +39,8 @@ int main( int argc, char **argv )
     int             score;
     Parameters      params;
 
+    MultipleLeafPtr *multiple; /*in case of multiple genomes per leaf*/
+
     initParameters( &params );
     readCommandLine( argc, argv, &params );
     srand( params.seed ); if ( DEBUG ) { printf( "\nseed: %d\n", params.seed ); }
@@ -57,12 +59,11 @@ int main( int argc, char **argv )
 
     /* read genomes from raw data into phylogenetic tree */
     readNumberLeavesAndGenes( &phyloTree, &params, &rdataset );//--from tree.c 
-    printf("Number of diff leaves: %d\n", phyloTree.numberLeaves );
-    return 0;
-    //Continue here ...
-
     allocateMemoryForNodes( &phyloTree, &params );//--from tree.c
+
+    //working here ...
     readGenomesFromRawData( &phyloTree, &params, &rdataset );//--from tree.c 
+    return 0;
 
     createTopologyFromNewickFormat( &phyloTree, &params );//from tree.c    
     score = labelOptimizeTree( &phyloTree, &params );//--iterate tree.c
@@ -82,6 +83,7 @@ int main( int argc, char **argv )
     freeKeys( rdataset.numberGenes, &setkeys );//--from condense.c
     freeRawDataset( &rdataset );//--from condense.c
     freeTree( &phyloTree, &params );//--from tree.c
+    freeMultipleLeafs( &phyloTree, multiple );//--from tree.c 
 
 	return 0;
 }
