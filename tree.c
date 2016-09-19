@@ -357,6 +357,112 @@ void readGenomesFromRawData( TreePtr phyloTreePtr, ParametersPtr paramsPtr,
     }
 }
 
+static void readGenomes( TreePtr phyloTreePtr, RawDatasetPtr rdatasetPtr )
+{
+    int i, j, k;
+    int endSymbol, previousEndSymbol;
+
+    for( i = 0; i < phyloTreePtr->numberLeaves; i++ ) {
+        phyloTreePtr->nodesPtrArray[ i ]->organism = rdatasetPtr->rgenomePtrArray[ i ]->organism;
+
+        if ( rdatasetPtr->numberChromosomesArray[ i ] > 1 ) {
+            fprintf( stderr, " stderr: reversal distance just support single-chromosome genomes.\n" );
+            exit( EXIT_FAILURE );
+        }
+        else {
+            k = 0;
+            /* read a genome i */
+            for ( j = 0; j < rdatasetPtr->rgenomePtrArray[ i ]->numberElements; j++ ) {
+                if ( rdatasetPtr->rgenomePtrArray[ i ]->genome[ j ] == SPLIT ) {
+                    endSymbol = rdatasetPtr->rgenomePtrArray[ i ]->chromosomeType[ 0 ];
+                }
+                else {
+                    phyloTreePtr->nodesPtrArray[ i ]->genome[ k ] = 
+                            rdatasetPtr->rgenomePtrArray[ i ]->genome[ j ];
+                    k++;
+                }    
+            }
+
+            if ( i > 0 && ( endSymbol != previousEndSymbol ) ) {
+                fprintf( stderr, " stderr: genomes must be all circular (@)" ); 
+                fprintf( stderr, " or all linear ($) for reversal distance.\n" ); 
+                exit( EXIT_FAILURE );
+            }
+            previousEndSymbol = endSymbol;
+        }
+
+    }
+}
+
+static void readGenomesDCJ( TreePtr phyloTreePtr, RawDatasetPtr rdatasetPtr )
+{
+    int i, j, k, h, init;
+    int temp, a, b, num, newChromosome;
+
+    for( i = 0; i < phyloTreePtr->numberLeaves; i++ ) {
+        phyloTreePtr->nodesPtrArray[ i ]->organism = 
+                            rdatasetPtr->rgenomePtrArray[ i ]->organism;
+
+        init = 0; k = 1; h = 0;
+        temp = 0; a = 0; b = 0;
+        newChromosome = TRUE;
+        /* convert raw genome into dcj format */
+        for ( j = 0; j < rdatasetPtr->rgenomePtrArray[ i ]->numberElements; j++ ) {
+            /* NOTE: how to encode a gene either positive or negative
+            gen a: tail (-a), head (+a)
+            gen -a: head (+a), tail (-a)*/ 
+
+            num = rdatasetPtr->rgenomePtrArray[ i ]->genome[ j ];
+
+            if ( newChromosome == TRUE ) {
+                temp = -1 * num;
+                a = num;
+                newChromosome = FALSE;
+            }
+            else if ( num == SPLIT ) { 
+                if ( rdatasetPtr->rgenomePtrArray[ i ]->chromosomeType[ h ] == LINEAR_SYM ) {
+                    phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ init ]->x = temp;                         
+                    phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ init ]->y = temp;
+                    phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ init ]->type = TELOMERE;
+                            
+                    phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ k ]->x = a;                         
+                    phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ k ]->y = a;
+                    phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ k ]->type = TELOMERE;
+                    k++; init = k;
+                    k++;
+                    newChromosome = TRUE;
+                } 
+                else if ( rdatasetPtr->rgenomePtrArray[ i ]->chromosomeType[ h ] == CIRCULAR_SYM ) {
+                    phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ init ]->x = a;                         
+                    phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ init ]->y = temp;
+                    phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ init ]->type = ADJACENCY;
+                    init = k;
+                    k++;
+                    newChromosome = TRUE;
+                }
+                h++;
+            }
+            else { // num is a number
+                b = -1 * num;
+                phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ k ]->x = a;                         
+                phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ k ]->y = b;
+                phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ k ]->type = ADJACENCY;
+                a = num;
+                k++;
+            }
+
+        }
+        phyloTreePtr->nodesPtrArray[ i ]->numPointsDCJ = k - 1;
+
+        /* generate inverse of dcj genome */
+        calculateInverseGenome( 
+            phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ, 
+            phyloTreePtr->nodesPtrArray[ i ]->numPointsDCJ, 
+            phyloTreePtr->nodesPtrArray[ i ]->inverseDCJ );
+        
+    }//end-for
+}
+
 static void countGenomesPerLeaf( TreePtr phyloTreePtr, 
                 RawDatasetPtr rdatasetPtr, MultipleLeafPtr *multiple )
 {
@@ -435,7 +541,6 @@ void allocateMemoryForLeafCandidates(
             multiple[ i ]->candidatesPtrArray = NULL;
         }
     }
-
 }
 
 void freeMultipleLeafs( TreePtr phyloTreePtr, MultipleLeafPtr *multiple )
@@ -453,151 +558,134 @@ void freeMultipleLeafs( TreePtr phyloTreePtr, MultipleLeafPtr *multiple )
             }
         }
         free( multiple );
-    }
-    
+    } 
 }
 
-static void readGenomes( TreePtr phyloTreePtr, RawDatasetPtr rdatasetPtr )
+static void readGenomesDCJ_MultiLeaf( 
+    TreePtr phyloTreePtr, RawDatasetPtr rdatasetPtr, 
+    int *numLeafCandidates, CandidatePtr **leafCandidatesPtr )
 {
-    int i, j, k;
-    int endSymbol, previousEndSymbol;
-
-    for( i = 0; i < phyloTreePtr->numberLeaves; i++ ) {
-        phyloTreePtr->nodesPtrArray[ i ]->organism = rdatasetPtr->rgenomePtrArray[ i ]->organism;
-
-        if ( rdatasetPtr->numberChromosomesArray[ i ] > 1 ) {
-            fprintf( stderr, " stderr: reversal distance just support single-chromosome genomes.\n" );
-            exit( EXIT_FAILURE );
-        }
-        else {
-            k = 0;
-            /* read a genome i */
-            for ( j = 0; j < rdatasetPtr->rgenomePtrArray[ i ]->numberElements; j++ ) {
-                if ( rdatasetPtr->rgenomePtrArray[ i ]->genome[ j ] == SPLIT ) {
-                    endSymbol = rdatasetPtr->rgenomePtrArray[ i ]->chromosomeType[ 0 ];
-                }
-                else {
-                    phyloTreePtr->nodesPtrArray[ i ]->genome[ k ] = 
-                            rdatasetPtr->rgenomePtrArray[ i ]->genome[ j ];
-                    k++;
-                }    
-            }
-
-            if ( i > 0 && ( endSymbol != previousEndSymbol ) ) {
-                fprintf( stderr, " stderr: genomes must be all circular (@)" ); 
-                fprintf( stderr, " or all linear ($) for reversal distance.\n" ); 
-                exit( EXIT_FAILURE );
-            }
-            previousEndSymbol = endSymbol;
-        }
-
-    }
-}
-
-static void readGenomesDCJ( TreePtr phyloTreePtr, RawDatasetPtr rdatasetPtr )
-{
-    int i, j, k, h, init;
-    int temp, a, b, num, newChromosome;
-
-    for( i = 0; i < phyloTreePtr->numberLeaves; i++ ) {
-        phyloTreePtr->nodesPtrArray[ i ]->organism = rdatasetPtr->rgenomePtrArray[ i ]->organism;
-
-        init = 0; k = 1; h = 0;
-        temp = 0; a = 0; b = 0;
-        newChromosome = TRUE;
-        /* convert raw genome into dcj format */
-        for ( j = 0; j < rdatasetPtr->rgenomePtrArray[ i ]->numberElements; j++ ) {
-            /* NOTE: how to encode a gene either positive or negative
-            gen a: tail (-a), head (+a)
-            gen -a: head (+a), tail (-a)*/ 
-
-            num = rdatasetPtr->rgenomePtrArray[ i ]->genome[ j ];
-
-            if ( newChromosome == TRUE ) {
-                temp = -1 * num;
-                a = num;
-                newChromosome = FALSE;
-            }
-            else if ( num == SPLIT ) { 
-                if ( rdatasetPtr->rgenomePtrArray[ i ]->chromosomeType[ h ] == LINEAR_SYM ) {
-                    phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ init ]->x = temp;                         
-                    phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ init ]->y = temp;
-                    phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ init ]->type = TELOMERE;
-                            
-                    phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ k ]->x = a;                         
-                    phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ k ]->y = a;
-                    phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ k ]->type = TELOMERE;
-                    k++; init = k;
-                    k++;
-                    newChromosome = TRUE;
-                } 
-                else if ( rdatasetPtr->rgenomePtrArray[ i ]->chromosomeType[ h ] == CIRCULAR_SYM ) {
-                    phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ init ]->x = a;                         
-                    phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ init ]->y = temp;
-                    phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ init ]->type = ADJACENCY;
-                    init = k;
-                    k++;
-                    newChromosome = TRUE;
-                }
-                h++;
-            }
-            else { // num is a number
-                b = -1 * num;
-                phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ k ]->x = a;                         
-                phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ k ]->y = b;
-                phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ k ]->type = ADJACENCY;
-                a = num;
-                k++;
-            }
-
-        }
-        phyloTreePtr->nodesPtrArray[ i ]->numPointsDCJ = k - 1;
-
-        /* generate inverse of dcj genome */
-        calculateInverseGenome( 
-            phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ, 
-            phyloTreePtr->nodesPtrArray[ i ]->numPointsDCJ, 
-            phyloTreePtr->nodesPtrArray[ i ]->inverseDCJ );
-        
-    }//end-for
-}
-
-static void readGenomesDCJ_MultiLeaf( TreePtr phyloTreePtr,
-    RawDatasetPtr rdatasetPtr, int *numLeafCandidates, CandidatePtr **leafCandidatesPtr )
-{
-    int i, j, k, unique;
+    int i, j, k, h, count, index, advanceIndex;
     int *visited;
 
-
     visited = malloc( rdatasetPtr->numberGenomes * sizeof( int ) );
+    if ( visited == NULL )
+            nomemMessage( "visited" );
     for ( i = 0; i < rdatasetPtr->numberGenomes; i++ ) { 
         visited[ i ] = FALSE; 
     }
 
+    k = 0; //index of phyloTreePtr
     for ( i = 0; i < rdatasetPtr->numberGenomes; i++ ) {
         unique = TRUE;
+        advanceIndex = TRUE;
+        h = 0;
         for ( j = 0; j < rdatasetPtr->numberGenomes; j++ ) {
             if ( i != j && 
                 strcmp( rdatasetPtr->rgenomePtrArray[ i ]->organism,
                 rdatasetPtr->rgenomePtrArray[ j ]->organism ) == 0 )    
             {
-                unique = FALSE;
-                break;
+                if ( visited[ j ] == FALSE ) {
+                    if ( h == 0 ) {
+                        convertRawGenomeIntoDCJ_LeafCandidate(
+                                        multiple, index, h, rdatasetPtr, i );
+                        h++;
+                    }
+                    convertRawGenomeIntoDCJ_LeafCandidate(
+                                        multiple, index, h, rdatasetPtr, j );
+                    h++;
+
+                    visited[ j ] = TRUE;
+                }
+                else {
+                    unique = FALSE;
+                    advanceIndex = FALSE;
+                    break;
+                }
             }
         }
+
+        visited[ i ] = TRUE;
+
         if ( unique == TRUE ) {
-            convertRawGenomeIntoDCJ_LeafNode(); 
+            convertRawGenomeIntoDCJ_LeafNode( 
+                                    phylotreePtr, k, rdatasetPtr, i );
+            k++;
         }
-        else { //is not unique
-            convertRawGenomeIntoDCJ_LeafCandidate();
-            if ( visited[ j ] == FALSE ) {
-                convertRawGenomeIntoDCJ_LeafNode();
-            }
-        } 
-        visited[ i ] = TRUE;             
+
+        if ( advanceIndex == TRUE )
+            index++;
     }
 
     free( visited );
+}
+
+void convertRawGenomeIntoDCJ_LeafNode( 
+    TreePtr phyloTreePtr, int i, RawDatasetPtr rdatasetPtr )
+{
+    //MODIFY THIS ...
+
+    init = 0; k = 1; h = 0;
+    temp = 0; a = 0; b = 0;
+    newChromosome = TRUE;
+    /* convert raw genome into dcj format */
+    for ( j = 0; j < rdatasetPtr->rgenomePtrArray[ i ]->numberElements; j++ ) {
+        /* NOTE: how to encode a gene either positive or negative
+        gen a: tail (-a), head (+a)
+        gen -a: head (+a), tail (-a)*/ 
+
+        num = rdatasetPtr->rgenomePtrArray[ i ]->genome[ j ];
+
+        if ( newChromosome == TRUE ) {
+            temp = -1 * num;
+            a = num;
+            newChromosome = FALSE;
+        }
+        else if ( num == SPLIT ) { 
+            if ( rdatasetPtr->rgenomePtrArray[ i ]->chromosomeType[ h ] == LINEAR_SYM ) {
+                phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ init ]->x = temp;                         
+                phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ init ]->y = temp;
+                phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ init ]->type = TELOMERE;
+                        
+                phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ k ]->x = a;                         
+                phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ k ]->y = a;
+                phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ k ]->type = TELOMERE;
+                k++; init = k;
+                k++;
+                newChromosome = TRUE;
+            } 
+            else if ( rdatasetPtr->rgenomePtrArray[ i ]->chromosomeType[ h ] == CIRCULAR_SYM ) {
+                phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ init ]->x = a;                         
+                phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ init ]->y = temp;
+                phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ init ]->type = ADJACENCY;
+                init = k;
+                k++;
+                newChromosome = TRUE;
+            }
+            h++;
+        }
+        else { // num is a number
+            b = -1 * num;
+            phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ k ]->x = a;                         
+            phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ k ]->y = b;
+            phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ k ]->type = ADJACENCY;
+            a = num;
+            k++;
+        }
+
+    }
+    phyloTreePtr->nodesPtrArray[ i ]->numPointsDCJ = k - 1;
+
+    /* generate inverse of dcj genome */
+    calculateInverseGenome( 
+        phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ, 
+        phyloTreePtr->nodesPtrArray[ i ]->numPointsDCJ, 
+        phyloTreePtr->nodesPtrArray[ i ]->inverseDCJ );
+}
+
+void convertRawGenomeIntoDCJ_LeafCandidate()
+{
+
 }
 
 /* IMPORTANT NOTE: This function is used just for the Small-Phylogny case */
