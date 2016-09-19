@@ -32,7 +32,7 @@ struct rawDataset {
 	int numberGenomes;
 	int numberGenes;
 	int *numberChromosomesArray;
-	RawGenomePtr *rgenomePtrArray;	
+	RawGenomePtr *rgenomes;	
 };
 typedef struct rawDataset RawDataset;
 typedef RawDataset *RawDatasetPtr;

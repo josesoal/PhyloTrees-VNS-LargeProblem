@@ -58,11 +58,12 @@ int main( int argc, char **argv )
     condenseGenomes( &rdataset, &setkeys );//--from condense.c
 
     /* read genomes from raw data into phylogenetic tree */
-    readNumberLeavesAndGenes( &phyloTree, &params, &rdataset );//--from tree.c 
-    allocateMemoryForNodes( &phyloTree, &params );//--from tree.c
-
-    //working here ...
-    readGenomesFromRawData( &phyloTree, &params, &rdataset );//--from tree.c 
+    readNumberLeavesAndGenes( &phyloTree, &params, &rdataset );//--from tree.c     
+    allocateMemoryForNodes( &phyloTree, &params );//--from tree.c    
+    readGenomesFromRawData( 
+        &phyloTree, &params, &rdataset, &multiple );//--from tree.c
+printf("ok.EE\n"); 
+    showGenomes( &phyloTree, &params ); 
     return 0;
 
     createTopologyFromNewickFormat( &phyloTree, &params );//from tree.c    
@@ -83,7 +84,7 @@ int main( int argc, char **argv )
     freeKeys( rdataset.numberGenes, &setkeys );//--from condense.c
     freeRawDataset( &rdataset );//--from condense.c
     freeTree( &phyloTree, &params );//--from tree.c
-    freeMultipleLeafs( &phyloTree, multiple );//--from tree.c 
+    freeMultipleLeafs( &phyloTree, &multiple, &params );//--from tree.c ddd
 
 	return 0;
 }
@@ -133,8 +134,8 @@ static void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
         fprintf( stdout, "\t\t -r 3 : one circular, or one or more linear chromosomes\n" );
         fprintf( stdout, "\t\t( -r 0 is used by default if option is omitted)\n" );
         fprintf( stdout, "\t-v: [optional] alternative multiple genomes for DCJ.\n" );
-        fprintf( stdout, "\t\t -r 0 : one genome per leaf\n" );
-        fprintf( stdout, "\t\t -r 1 : multiples genomes per leaf\n" );
+        fprintf( stdout, "\t\t -v 0 : one genome per leaf\n" );
+        fprintf( stdout, "\t\t -v 1 : multiples genomes per leaf\n" );
         fprintf( stdout, "\t\t( -v 0 is used by default if option is omitted)\n\n" );
         //fprintf( stdout, " using the default testset: testsets/camp05_cond\n" );
         //fprintf( stdout, " try other >> ./main -t testsets/camp07_cond\n" );
@@ -437,8 +438,8 @@ static void readRawData( char *filename, RawDatasetPtr rdatasetPtr )
             }
 
             /* copy buffer into leaf node*/
-            rdatasetPtr->rgenomePtrArray[ i ]->organism = malloc( ( k + 1 ) * sizeof( char ) );
-            strcpy( rdatasetPtr->rgenomePtrArray[ i ]->organism, buffer ); 
+            rdatasetPtr->rgenomes[ i ]->organism = malloc( ( k + 1 ) * sizeof( char ) );
+            strcpy( rdatasetPtr->rgenomes[ i ]->organism, buffer ); 
 
             /* read genes from next line*/
             k = 0; j = 0; h = 0;
@@ -446,15 +447,15 @@ static void readRawData( char *filename, RawDatasetPtr rdatasetPtr )
                 if ( c == ' ' || c == '@' || c == '$' || c == '\n' ){
                     buffer[ k ] = '\0';
                     if ( k > 0 ) {
-                        rdatasetPtr->rgenomePtrArray[ i ]->genome[ j ] = atoi( buffer );
+                        rdatasetPtr->rgenomes[ i ]->genome[ j ] = atoi( buffer );
                         j++;
                         //printf("%d,", atoi(buffer));    
                     }
                     k = 0;
 
                     if ( c == '@' || c == '$') {
-                        rdatasetPtr->rgenomePtrArray[ i ]->genome[ j ] = SPLIT;
-                        rdatasetPtr->rgenomePtrArray[ i ]->chromosomeType[ h ] = 
+                        rdatasetPtr->rgenomes[ i ]->genome[ j ] = SPLIT;
+                        rdatasetPtr->rgenomes[ i ]->chromosomeType[ h ] = 
                                         ( c == '@' ? CIRCULAR_SYM : LINEAR_SYM );
                         j++;
                         h++;

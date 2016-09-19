@@ -28,8 +28,13 @@ void copyTreeInto( TreePtr phyloTree1Ptr,
 	TreePtr phyloTree2Ptr, int copyStructure, ParametersPtr paramsPtr);
 void readNumberLeavesAndGenes( 
     TreePtr phyloTreePtr, ParametersPtr paramsPtr, RawDatasetPtr rdatasetPtr ); 
-void readGenomesFromRawData( 
-    TreePtr phyloTreePtr, ParametersPtr paramsPtr, RawDatasetPtr rdatasetPtr );
+void readGenomesFromRawData( TreePtr phyloTreePtr, ParametersPtr paramsPtr, 
+            RawDatasetPtr rdatasetPtr, MultipleLeafPtr **multiple );
+void allocateMemoryForLeafCandidates( 
+                TreePtr phyloTreePtr, MultipleLeafPtr *multiple );
+void freeMultipleLeafs( 
+	TreePtr phyloTreePtr, MultipleLeafPtr **multiple, ParametersPtr paramsPtr );
+
 void createTopologyFromNewickFormat( TreePtr phyloTreePtr, ParametersPtr paramsPtr );
 int createInitialTreeTopology(TreePtr phyloTreePtr, ParametersPtr paramsPtr );
 

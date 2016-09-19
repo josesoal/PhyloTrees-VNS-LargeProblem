@@ -31,32 +31,32 @@ void allocateMemoryForRawData( RawDatasetPtr rdatasetPtr )
 	for ( i = 0; i < rdatasetPtr->numberGenomes; i++ ) {
 		rdatasetPtr->numberChromosomesArray[ i ] = 0;
 	}
-	rdatasetPtr->rgenomePtrArray = NULL;
+	rdatasetPtr->rgenomes = NULL;
 }
 
 void allocateMemoryForRawGenomes( RawDatasetPtr rdatasetPtr )
 {
 	int i;
 
-	rdatasetPtr->rgenomePtrArray = malloc( rdatasetPtr->numberGenomes * sizeof( RawGenomePtr ) );
-	if ( rdatasetPtr->rgenomePtrArray == NULL ) { nomemMessage("rdatasetPtr->rgenomePtrArray"); }
+	rdatasetPtr->rgenomes = malloc( rdatasetPtr->numberGenomes * sizeof( RawGenomePtr ) );
+	if ( rdatasetPtr->rgenomes == NULL ) { nomemMessage("rdatasetPtr->rgenomes"); }
 
 	for ( i = 0; i < rdatasetPtr->numberGenomes; i++ ) {
-		rdatasetPtr->rgenomePtrArray[ i ] = malloc( sizeof( RawGenome ) );
-		if ( rdatasetPtr->rgenomePtrArray[ i ] == NULL ) { nomemMessage("rdatasetPtr->rgenomePtrArray[ i ]"); }
+		rdatasetPtr->rgenomes[ i ] = malloc( sizeof( RawGenome ) );
+		if ( rdatasetPtr->rgenomes[ i ] == NULL ) { nomemMessage("rdatasetPtr->rgenomes[ i ]"); }
 
-        rdatasetPtr->rgenomePtrArray[ i ]->organism = NULL;
-        rdatasetPtr->rgenomePtrArray[ i ]->numberChromosomes = rdatasetPtr->numberChromosomesArray[ i ];
-        rdatasetPtr->rgenomePtrArray[ i ]->chromosomeType = malloc( rdatasetPtr->numberChromosomesArray[ i ] * sizeof( int ) );
-        if ( rdatasetPtr->rgenomePtrArray[ i ]->chromosomeType == NULL ) { 
-            nomemMessage("rdatasetPtr->rgenomePtrArray[ i ]->chromosomeType"); 
+        rdatasetPtr->rgenomes[ i ]->organism = NULL;
+        rdatasetPtr->rgenomes[ i ]->numberChromosomes = rdatasetPtr->numberChromosomesArray[ i ];
+        rdatasetPtr->rgenomes[ i ]->chromosomeType = malloc( rdatasetPtr->numberChromosomesArray[ i ] * sizeof( int ) );
+        if ( rdatasetPtr->rgenomes[ i ]->chromosomeType == NULL ) { 
+            nomemMessage("rdatasetPtr->rgenomes[ i ]->chromosomeType"); 
         }
-		rdatasetPtr->rgenomePtrArray[ i ]->numberElements = 
+		rdatasetPtr->rgenomes[ i ]->numberElements = 
 						rdatasetPtr->numberGenes + rdatasetPtr->numberChromosomesArray[ i ];
-		rdatasetPtr->rgenomePtrArray[ i ]->genome = 
-						malloc( rdatasetPtr->rgenomePtrArray[ i ]->numberElements * sizeof( int ) );
-		if ( rdatasetPtr->rgenomePtrArray[ i ]->genome == NULL ) { 
-            nomemMessage("rdatasetPtr->rgenomePtrArray[ i ]->genes"); 
+		rdatasetPtr->rgenomes[ i ]->genome = 
+						malloc( rdatasetPtr->rgenomes[ i ]->numberElements * sizeof( int ) );
+		if ( rdatasetPtr->rgenomes[ i ]->genome == NULL ) { 
+            nomemMessage("rdatasetPtr->rgenomes[ i ]->genes"); 
         }
 	}
 }
@@ -95,12 +95,12 @@ void freeRawDataset( RawDatasetPtr rdatasetPtr )
 	
 	free ( rdatasetPtr->numberChromosomesArray );
 	for ( i = 0; i < rdatasetPtr->numberGenomes; i++ ) {
-		free( rdatasetPtr->rgenomePtrArray[ i ]->genome );
-        free( rdatasetPtr->rgenomePtrArray[ i ]->chromosomeType );
-        free( rdatasetPtr->rgenomePtrArray[ i ]->organism );
-		free( rdatasetPtr->rgenomePtrArray[ i ] );
+		free( rdatasetPtr->rgenomes[ i ]->genome );
+        free( rdatasetPtr->rgenomes[ i ]->chromosomeType );
+        free( rdatasetPtr->rgenomes[ i ]->organism );
+		free( rdatasetPtr->rgenomes[ i ] );
 	}
-	free( rdatasetPtr->rgenomePtrArray );
+	free( rdatasetPtr->rgenomes );
 }
 
 void findSetKeysForCondensing( RawDatasetPtr rdatasetPtr, SetKeysPtr setkeysPtr )
@@ -139,14 +139,14 @@ void findSetKeysForCondensing( RawDatasetPtr rdatasetPtr, SetKeysPtr setkeysPtr 
 		startFound = FALSE;
 		sequenceComplete = FALSE;
 		ikey = 0;
-		for ( j = 0; j < rdatasetPtr->rgenomePtrArray[ i ]->numberElements; j++ ) {
+		for ( j = 0; j < rdatasetPtr->rgenomes[ i ]->numberElements; j++ ) {
 			/* AVOID case of reaching the simbol $ or @ represented by SPLIT */
-			if ( rdatasetPtr->rgenomePtrArray[ i ]->genome[ j ] == SPLIT ) {
+			if ( rdatasetPtr->rgenomes[ i ]->genome[ j ] == SPLIT ) {
 				continue;
 			}
 
-			current = rdatasetPtr->rgenomePtrArray[ i ]->genome[ j ];
-			next 	= rdatasetPtr->rgenomePtrArray[ i ]->genome[ j + 1 ];
+			current = rdatasetPtr->rgenomes[ i ]->genome[ j ];
+			next 	= rdatasetPtr->rgenomes[ i ]->genome[ j + 1 ];
 
 			/* check if there exists a sequence between current and next gene */
 			if ( next != SPLIT && abs( next - current ) == 1 ) {
@@ -281,36 +281,36 @@ void condenseGenomes( RawDatasetPtr rdatasetPtr, SetKeysPtr setkeysPtr )
 		for ( j = 0; j < rdatasetPtr->numberGenomes; j++ ) {
 			
 			iwrite = 0;
-			for ( k = 0; k < rdatasetPtr->rgenomePtrArray[ j ]->numberElements; k++ ) {
+			for ( k = 0; k < rdatasetPtr->rgenomes[ j ]->numberElements; k++ ) {
 
-				if ( abs( rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] ) <= 
+				if ( abs( rdatasetPtr->rgenomes[ j ]->genome[ k ] ) <= 
 								setkeysPtr->condkeyPtrArray[ i ]->gene ) {
 
-					rdatasetPtr->rgenomePtrArray[ j ]->genome[ iwrite ] = 
-								rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ];
+					rdatasetPtr->rgenomes[ j ]->genome[ iwrite ] = 
+								rdatasetPtr->rgenomes[ j ]->genome[ k ];
 					iwrite++;
 				}
-				else if ( abs( rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] ) > 
+				else if ( abs( rdatasetPtr->rgenomes[ j ]->genome[ k ] ) > 
 							otherExtreme ) {
 
 					// update the gen by subtracting (or adding) the difference 
-					if ( rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] > 0 ) {
+					if ( rdatasetPtr->rgenomes[ j ]->genome[ k ] > 0 ) {
 
-						rdatasetPtr->rgenomePtrArray[ j ]->genome[ iwrite ] =
-								rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] - 
+						rdatasetPtr->rgenomes[ j ]->genome[ iwrite ] =
+								rdatasetPtr->rgenomes[ j ]->genome[ k ] - 
 								setkeysPtr->condkeyPtrArray[ i ]->diff;
 					}
-					else { // rdatasetPtr->rgenomePtrArray[ j ]->rawGenome[ k ] < 0
+					else { // rdatasetPtr->rgenomes[ j ]->rawGenome[ k ] < 0
 
-						rdatasetPtr->rgenomePtrArray[ j ]->genome[ iwrite ] =
-								rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] + 
+						rdatasetPtr->rgenomes[ j ]->genome[ iwrite ] =
+								rdatasetPtr->rgenomes[ j ]->genome[ k ] + 
 								setkeysPtr->condkeyPtrArray[ i ]->diff;
 					}
 					iwrite++;
 				}
 
 			} 
-			rdatasetPtr->rgenomePtrArray[ j ]->numberElements = iwrite;
+			rdatasetPtr->rgenomes[ j ]->numberElements = iwrite;
 		}
 	}	
 
@@ -341,20 +341,20 @@ void unpackCondensedGenomes( RawDatasetPtr rdatasetPtr, SetKeysPtr setkeysPtr )
 		// reverse condensation of nodes using key i 
 		for ( j = 0; j < rdatasetPtr->numberGenomes; j++ ) {
 			// find gene that represents a sequence 
-			for ( k = 0; k < rdatasetPtr->rgenomePtrArray[ j ]->numberElements; k++ ) {
-				if ( abs( rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] ) > 
+			for ( k = 0; k < rdatasetPtr->rgenomes[ j ]->numberElements; k++ ) {
+				if ( abs( rdatasetPtr->rgenomes[ j ]->genome[ k ] ) > 
 							setkeysPtr->condkeyPtrArray[ i ]->gene ) {
 
-					if ( rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] > 0 ) {
-						rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] = 
-							rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] + diff;
+					if ( rdatasetPtr->rgenomes[ j ]->genome[ k ] > 0 ) {
+						rdatasetPtr->rgenomes[ j ]->genome[ k ] = 
+							rdatasetPtr->rgenomes[ j ]->genome[ k ] + diff;
 					}
 					else { // < 0
-						rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] = 
-							rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] - diff;
+						rdatasetPtr->rgenomes[ j ]->genome[ k ] = 
+							rdatasetPtr->rgenomes[ j ]->genome[ k ] - diff;
 					}
 				}
-				else if ( abs( rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] ) == 
+				else if ( abs( rdatasetPtr->rgenomes[ j ]->genome[ k ] ) == 
 								setkeysPtr->condkeyPtrArray[ i ]->gene ) {
 					iseq = k;
 					break;
@@ -362,27 +362,27 @@ void unpackCondensedGenomes( RawDatasetPtr rdatasetPtr, SetKeysPtr setkeysPtr )
 			}
 
 			// make space by shifting to the right 
-			for ( k = rdatasetPtr->rgenomePtrArray[ j ]->numberElements - 1; k > iseq; k-- ) {
-				if ( abs( rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] ) > 
+			for ( k = rdatasetPtr->rgenomes[ j ]->numberElements - 1; k > iseq; k-- ) {
+				if ( abs( rdatasetPtr->rgenomes[ j ]->genome[ k ] ) > 
 							setkeysPtr->condkeyPtrArray[ i ]->gene ) {
 
-					if ( rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] > 0 ) {
-						rdatasetPtr->rgenomePtrArray[ j ]->genome[ k + diff ] = 
-							rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] + diff;
+					if ( rdatasetPtr->rgenomes[ j ]->genome[ k ] > 0 ) {
+						rdatasetPtr->rgenomes[ j ]->genome[ k + diff ] = 
+							rdatasetPtr->rgenomes[ j ]->genome[ k ] + diff;
 					}
 					else{ // < 0
-						rdatasetPtr->rgenomePtrArray[ j ]->genome[ k + diff ] = 
-							rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] - diff;
+						rdatasetPtr->rgenomes[ j ]->genome[ k + diff ] = 
+							rdatasetPtr->rgenomes[ j ]->genome[ k ] - diff;
 					}
 				}
 				else { // < (includes case when genome[k] is zero)
-					rdatasetPtr->rgenomePtrArray[ j ]->genome[ k + diff ] = 
-							rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ];
+					rdatasetPtr->rgenomes[ j ]->genome[ k + diff ] = 
+							rdatasetPtr->rgenomes[ j ]->genome[ k ];
 				}
 			}
 
 			// insert the sequence  
-			if ( rdatasetPtr->rgenomePtrArray[ j ]->genome[ iseq ] > 0 ) { 
+			if ( rdatasetPtr->rgenomes[ j ]->genome[ iseq ] > 0 ) { 
 				gene = setkeysPtr->condkeyPtrArray[ i ]->start; 
 			}
 			else { // < 0
@@ -391,18 +391,18 @@ void unpackCondensedGenomes( RawDatasetPtr rdatasetPtr, SetKeysPtr setkeysPtr )
 			
 			if ( setkeysPtr->condkeyPtrArray[ i ]->orientation == INCREASING ) {
 				for ( k = iseq; k <= iseq + diff; k++ ) {
-					rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] = gene;
+					rdatasetPtr->rgenomes[ j ]->genome[ k ] = gene;
 					gene = gene + 1; 	
 				}
 			}
 			else { // setkeysPtr->condkeyPtrArray[i]->orientation == DECREASING
 				for ( k = iseq; k <= iseq + diff; k++ ) {
-					rdatasetPtr->rgenomePtrArray[ j ]->genome[ k ] = gene;
+					rdatasetPtr->rgenomes[ j ]->genome[ k ] = gene;
 					gene = gene - 1; 	
 				}
 			}
-			rdatasetPtr->rgenomePtrArray[ j ]->numberElements = 
-						rdatasetPtr->rgenomePtrArray[ j ]->numberElements + diff;
+			rdatasetPtr->rgenomes[ j ]->numberElements = 
+						rdatasetPtr->rgenomes[ j ]->numberElements + diff;
 		}//end-for
 		rdatasetPtr->numberGenes = rdatasetPtr->numberGenes + diff;
 
