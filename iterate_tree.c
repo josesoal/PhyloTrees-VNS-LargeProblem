@@ -52,9 +52,7 @@ static void callSolverAndLabelNode( TreePtr phyloTreePtr, TreeNodePtr nodePtr,
 static void iterateTreeUsingDFS( 
 	TreePtr phyloTreePtr, TreeNodePtr nodePtr, ParametersPtr paramsPtr ); 
 static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr, 
-	TreeNodePtr nodePtr, ParametersPtr paramsPtr ); 
-static void allocateMemForCandidate( TreePtr phyloTreePtr, CandidatePtr *candPtr );
-static void freeCandidate( TreePtr phyloTreePtr, CandidatePtr *candPtr ); 
+	TreeNodePtr nodePtr, ParametersPtr paramsPtr );  
 
 
 int labelOptimizeTree( TreePtr phyloTreePtr, ParametersPtr paramsPtr )
@@ -752,7 +750,7 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 	} // end-if
 }
 
-static void allocateMemForCandidate( TreePtr phyloTreePtr, CandidatePtr *candPtr )
+void allocateMemForCandidate( TreePtr phyloTreePtr, CandidatePtr *candPtr )
 { 
 	int j;
 
@@ -776,7 +774,7 @@ static void allocateMemForCandidate( TreePtr phyloTreePtr, CandidatePtr *candPtr
 	( *candPtr )->numPointsDCJ = 0;
 }
 
-static void freeCandidate( TreePtr phyloTreePtr, CandidatePtr *candPtr )
+void freeCandidate( TreePtr phyloTreePtr, CandidatePtr *candPtr )
 {
 	int j;
 

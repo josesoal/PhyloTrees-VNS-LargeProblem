@@ -62,8 +62,9 @@ int main( int argc, char **argv )
     allocateMemoryForNodes( &phyloTree, &params );//--from tree.c    
     readGenomesFromRawData( 
         &phyloTree, &params, &rdataset, &multiple );//--from tree.c
-printf("ok.EE\n"); 
-    showGenomes( &phyloTree, &params ); 
+ 
+    showMultipleLeaves( &phyloTree, multiple, &params );
+    //showGenomes( &phyloTree, &params ); 
     return 0;
 
     createTopologyFromNewickFormat( &phyloTree, &params );//from tree.c    

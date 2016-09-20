@@ -17,4 +17,7 @@ int labelOptimizeTree( TreePtr phyloTreePtr, ParametersPtr paramsPtr );
 int scoreTree( TreePtr phyloTreePtr, TreeNodePtr nodePtr, ParametersPtr paramsPtr );
 int calculateDistance( int *genome1, int *genome2, int numberGenes, ParametersPtr paramsPtr );
 
+void allocateMemForCandidate( TreePtr phyloTreePtr, CandidatePtr *candPtr );
+void freeCandidate( TreePtr phyloTreePtr, CandidatePtr *candPtr );
+
 #endif /* LABEL_TREE_H_ */
