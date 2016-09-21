@@ -540,7 +540,8 @@ static void disableSubtree(TreeNodePtr subtreeNodePtr, int *enabled, int *counte
 }
 
 /* (EXHAUSTIVE MUTATION 1) 
-return the best score from a exhaustive search by swapping two leaves */
+return the best score from a exhaustive search by swapping 
+two leaves ( in consecutive pairs (i, i+1) ) */
 int exhaustiveLeafSwap( TreePtr phyloTreePtr, ParametersPtr paramsPtr, int pScore )
 {
 	int i,j,score,newScore,copy, restart;
@@ -554,7 +555,6 @@ int exhaustiveLeafSwap( TreePtr phyloTreePtr, ParametersPtr paramsPtr, int pScor
 
 	restart = TRUE;
 	copy = TRUE;
-	//score = labelOptimizeTree( phyloTreePtr, paramsPtr );//from iterate_tree.c
 	score = pScore;
 	while ( TRUE ) {
 		if ( restart == TRUE ) {

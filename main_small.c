@@ -61,14 +61,14 @@ int main( int argc, char **argv )
     readNumberLeavesAndGenes( &phyloTree, &params, &rdataset );//--from tree.c     
     allocateMemoryForNodes( &phyloTree, &params );//--from tree.c    
     readGenomesFromRawData( 
-        &phyloTree, &params, &rdataset, &multiple );//--from tree.c
- 
-    showMultipleLeaves( &phyloTree, multiple, &params );
-    //showGenomes( &phyloTree, &params ); 
-    return 0;
+        &phyloTree, &params, &rdataset, &multiple );//--from tree.c    
 
-    createTopologyFromNewickFormat( &phyloTree, &params );//from tree.c    
+    createTopologyFromNewickFormat( &phyloTree, &params );//from tree.c
+    writeNewickFormatToFile( "newick_tree.txt", phyloTree.startingNodePtr, SHOW_BY_NAME );
+    return 0;
+    //Continue here ...    
     score = labelOptimizeTree( &phyloTree, &params );//--iterate tree.c
+    return 0;
 
     //showTreeNewickFormat( phyloTree.startingNodePtr, SHOW_BY_NAME );//from tree.c
     gettimeofday( &t_fin, NULL );//---------------------------take final time--
