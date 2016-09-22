@@ -37,7 +37,7 @@ static void selectBestNeighborhood( TreePtr phyloTreePtr,
 					TreeNodePtr nodePtr, int **scoreMatrix, 
 					CandidatePtr **candidateMatrix, int *numCandidates );
 static int labelOptimizeTree_GreedyCandidatesDCJ( 
-			TreePtr phyloTreePtr, int initialize,  ParametersPtr paramsPtr ); 	
+			TreePtr phyloTreePtr, int initialize,  ParametersPtr paramsPtr );	
 static void initializeTreeUsingDFS( TreePtr phyloTreePtr, 
 			TreeNodePtr nodePtr, ParametersPtr paramsPtr );
 static void initializeTreeWithDescendants( TreePtr phyloTreePtr, 
@@ -53,6 +53,8 @@ static void iterateTreeUsingDFS(
 	TreePtr phyloTreePtr, TreeNodePtr nodePtr, ParametersPtr paramsPtr ); 
 static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr, 
 	TreeNodePtr nodePtr, ParametersPtr paramsPtr );  
+static void improveTreebyLeafCandidates(TreePtr phyloTreePtr, 
+	ParametersPtr paramsPtr, MultipleLeafPtr *multiple. int pScore );
 
 
 int labelOptimizeTree( TreePtr phyloTreePtr, ParametersPtr paramsPtr )
@@ -65,12 +67,12 @@ int labelOptimizeTree( TreePtr phyloTreePtr, ParametersPtr paramsPtr )
 		if ( paramsPtr->opt == GREEDY_CANDIDATES ) {
 			initialize = TRUE;
 			score = labelOptimizeTree_GreedyCandidatesDCJ( 
-									phyloTreePtr, initialize, paramsPtr ); 	
+							phyloTreePtr, initialize, paramsPtr );
 		}
 		else if ( paramsPtr->opt == KOVAC ) {
 			initialize = TRUE;
 			score = labelOptimizeTree_KovacDCJ( 
-									phyloTreePtr, initialize, paramsPtr);
+							phyloTreePtr, initialize, paramsPtr);
 		}
 		else if ( paramsPtr->opt == HERENCSAR ) {
 			//initialize = TRUE;
@@ -382,6 +384,9 @@ static int labelOptimizeTree_GreedyCandidatesDCJ(
 			phyloTreePtr->startingNodePtr->rightDescPtr, paramsPtr );
 		newScore = scoreTree( phyloTreePtr, 
 			phyloTreePtr->startingNodePtr->rightDescPtr, paramsPtr );
+		/* this function is used in case leaves have multiple candidates */
+		newScore = improveTreebyLeafCandidates( 
+					phyloTreePtr, nodePtr, paramsPtr, multiple, newScore );
 
 		if ( newScore < score ) {
 			score = newScore;
@@ -394,6 +399,80 @@ static int labelOptimizeTree_GreedyCandidatesDCJ(
 
 	freeTree( &tempTree, paramsPtr );//--method from tree.c
 	return score;
+}
+
+static void improveTreebyLeafCandidates(TreePtr phyloTreePtr, 
+	ParametersPtr paramsPtr, MultipleLeafPtr *multiple. int pScore ) 
+{
+	int i, j, k, jmin, score;
+	int minDistance, distance;
+
+	score = pScore;
+	if ( paramsPtr->useMultipleGenomesOneLeaf == TRUE ){
+		
+		for ( i = 0; i < phyloTreePtr->numberLeaves; i++ ) {
+			if ( multiple[ i ]->numLeafCandidates > 0 ) {
+				/* determine the ancestor for distance calculation */
+				if (  phyloTreePtr->nodesPtrArray[ i ] ==
+								phyloTreePtr->startingNodePtr ) {
+					nodePtr = phyloTreePtr->startingNodePtr->rightDescPtr;
+				}
+				else {
+					nodePtr = phyloTreePtr->nodesPtrArray[ i ]->ancestorPtr;
+				}
+				/* determine the candidate leaf with minimum distance */
+				jmin = 0;
+				minDistance = DCJdistance(
+								multiple[ i ]->candidates[ 0 ]->genomeDCJ,
+								nodePtr->genomeDCJ,
+								multiple[ i ]->candidates[ 0 ]->inverseDCJ,
+								nodePtr->inverseDCJ,
+								multiple[ i ]->candidates[ 0 ]->numPointsDCJ,
+								nodePtr->numPointsDCJ );//--from dcjdist.c
+				for ( j = 1; j < multiple[ i ]->numLeafCandidates; j++ ) {
+					distance = DCJdistance(
+								multiple[ i ]->candidates[ j ]->genomeDCJ,
+								nodePtr->genomeDCJ,
+								multiple[ i ]->candidates[ j ]->inverseDCJ,
+								nodePtr->inverseDCJ,
+								multiple[ i ]->candidates[ j ]->numPointsDCJ,
+								nodePtr->numPointsDCJ );//--from dcjdist.c
+					if ( distance < minDistance ) {
+						minDistance = distance;
+						jmin = j;
+					}
+				}
+				/* copy the candidate with the minimum distance as new leaf */
+				phyloTreePtr->nodesPtrArray[ i ]->numPointsDCJ = 
+							multiple[ i ]->candidates[ jmin ]->numPointsDCJ;
+				for ( k = 0; k < nodePtr->numPointsDCJ; k++ ) {
+					phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ k ]->x = 
+						multiple[ i ]->candidates[ jmin ]->genomeDCJ[ k ]->x;
+					phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ k ]->y = 
+						multiple[ i ]->candidates[ jmin ]->genomeDCJ[ k ]->y;
+					phyloTreePtr->nodesPtrArray[ i ]->genomeDCJ[ k ]->type = 
+						multiple[ i ]->candidates[ jmin ]->genomeDCJ[ k ]->type;
+				}
+				for ( j = 0; j < 2 * phyloTreePtr->numberGenes; j++ ) {
+					phyloTreePtr->nodesPtrArray[ i ]->inverseDCJ[ j ] = 
+						multiple[ i ]->candidates[ jmin ]->inverseDCJ[ j ];
+				}
+				/* update the edge weight */
+				if (  phyloTreePtr->nodesPtrArray[ i ] ==
+								phyloTreePtr->startingNodePtr ) {
+					nodePtr->edgeWeight = minDistance;
+				}
+				else {
+					phyloTreePtr->nodesPtrArray[ i ]->edgeWeight = minDistance;
+				}
+			}
+		}
+		
+		score = scoreTree( phyloTreePtr, 
+					phyloTreePtr->startingNodePtr->rightDescPtr, paramsPtr );
+	}
+
+	return score; 
 }
 
 /* Initialization proposed by Herencsar for PIVO2 see paper "An Improved
@@ -683,6 +762,7 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 		/* search for best candidate */
 		update = FALSE;
 		for (i = 0; i < numCandidates; i++) {
+			/* dist. between candidate "i" and the ancestor of nodePtr */
 			newA = DCJdistance( candidatePtrArray[ i ]->genomeDCJ, 
 								nodePtr->ancestorPtr->genomeDCJ,
 								candidatePtrArray[ i ]->inverseDCJ, 
@@ -690,6 +770,7 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 								candidatePtrArray[ i ]->numPointsDCJ, 
 								nodePtr->ancestorPtr->numPointsDCJ,
 								phyloTreePtr->numberGenes );
+			/* dist. between candidate "i" and the left desc. of nodePtr */
 			newB = DCJdistance( candidatePtrArray[ i ]->genomeDCJ, 
 								nodePtr->leftDescPtr->genomeDCJ,
 								candidatePtrArray[ i ]->inverseDCJ, 
@@ -697,6 +778,7 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 								candidatePtrArray[ i ]->numPointsDCJ, 
 								nodePtr->leftDescPtr->numPointsDCJ,
 								phyloTreePtr->numberGenes );
+			/* dist. between candidate "i" and the right desc. of nodePtr */
 			newC = DCJdistance( candidatePtrArray[ i ]->genomeDCJ, 
 								nodePtr->rightDescPtr->genomeDCJ,
 								candidatePtrArray[ i ]->inverseDCJ, 
@@ -747,7 +829,8 @@ static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr,
 			freeCandidate( phyloTreePtr, &candidatePtrArray[ i ] );
 		}
 		free( candidatePtrArray );
-	} // end-if
+
+	}//end-if
 }
 
 void allocateMemForCandidate( TreePtr phyloTreePtr, CandidatePtr *candPtr )

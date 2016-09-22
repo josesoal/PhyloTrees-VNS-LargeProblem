@@ -65,7 +65,7 @@ int main( int argc, char **argv )
 
     createTopologyFromNewickFormat( &phyloTree, &params );//from tree.c
     writeNewickFormatToFile( "newick_tree.txt", phyloTree.startingNodePtr, SHOW_BY_NAME );
-    return 0;
+    
     //Continue here ...    
     score = labelOptimizeTree( &phyloTree, &params );//--iterate tree.c
     return 0;
