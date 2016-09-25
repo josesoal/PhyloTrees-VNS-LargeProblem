@@ -12,9 +12,9 @@
 
 #include "my_structs.h"
 
-int VNS( TreePtr phyloTreePtr, ParametersPtr paramsPtr );
-int exhaustiveLeafSwap( TreePtr phyloTreePtr, ParametersPtr paramsPtr, int pScore );
-int exhaustiveSubtreeScramble( TreePtr phyloTreePtr, ParametersPtr paramsPtr, int pScore );
+int VNS( TreePtr phyloTreePtr, ParametersPtr paramsPtr, MultipleLeafPtr *multiple );
+int exhaustiveLeafSwap( TreePtr phyloTreePtr, ParametersPtr paramsPtr, int pScore, MultipleLeafPtr *multiple );
+int exhaustiveSubtreeScramble( TreePtr phyloTreePtr, ParametersPtr paramsPtr, int pScore, MultipleLeafPtr *multiple );
 void showResults( TreePtr phyloTreePtr, enum distances dist, int score, double timediff );
 
 #endif /* VNS_H_ */

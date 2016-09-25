@@ -63,12 +63,8 @@ int main( int argc, char **argv )
     readGenomesFromRawData( 
         &phyloTree, &params, &rdataset, &multiple );//--from tree.c    
 
-    createTopologyFromNewickFormat( &phyloTree, &params );//from tree.c
-    writeNewickFormatToFile( "newick_tree.txt", phyloTree.startingNodePtr, SHOW_BY_NAME );
-    
-    //Continue here ...    
-    score = labelOptimizeTree( &phyloTree, &params );//--iterate tree.c
-    return 0;
+    createTopologyFromNewickFormat( &phyloTree, &params );//from tree.c  
+    score = labelOptimizeTree( &phyloTree, &params, multiple );//--iterate tree.c
 
     //showTreeNewickFormat( phyloTree.startingNodePtr, SHOW_BY_NAME );//from tree.c
     gettimeofday( &t_fin, NULL );//---------------------------take final time--
@@ -121,6 +117,9 @@ static void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
         fprintf( stdout, "\t\t -f filename\n" );
         fprintf( stdout, "\t-k : topology in Newick format\n" );
         fprintf( stdout, "\t\t -k filename\n" );
+        fprintf( stdout, "\t-i : [optional] number of iterations\n" );
+        fprintf( stdout, "\t\t -i number\n" );
+        fprintf( stdout, "\t\t(one iteration is used by default if option is omitted)\n" );
         fprintf( stdout, "\t-o : [optional] optimization method for DCJ\n" );
         fprintf( stdout, "\t\t -o gre : Greedy Candidates opt.\n" );
         fprintf( stdout, "\t\t -o kov : Kovac opt.\n" );

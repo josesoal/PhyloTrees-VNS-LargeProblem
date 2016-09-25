@@ -36,7 +36,7 @@ void freeMultipleLeafs(
 	TreePtr phyloTreePtr, MultipleLeafPtr **multiple, ParametersPtr paramsPtr );
 
 void createTopologyFromNewickFormat( TreePtr phyloTreePtr, ParametersPtr paramsPtr );
-int createInitialTreeTopology(TreePtr phyloTreePtr, ParametersPtr paramsPtr );
+int createInitialTreeTopology(TreePtr phyloTreePtr, ParametersPtr paramsPtr, MultipleLeafPtr *multiple );
 
 void unlinkNode(TreeNodePtr nodePtr, TreeNodePtr *internalNodePtr);
 void relinkNode(TreeNodePtr nodePtr, TreeNodePtr internalNodePtr);

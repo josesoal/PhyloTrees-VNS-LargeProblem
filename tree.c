@@ -40,7 +40,7 @@ static void createTopologyFromGraphByBFS(
                         int graph[ MAX_NODES ][ MAX_NODES ], int numLeaves );
 static void createTreeTopologyRandomly( TreePtr phyloTreePtr );
 static void createTreeRandomLeaf_FirstBestEdge( 
-    TreePtr phyloTreePtr, ParametersPtr paramsPtr );
+    TreePtr phyloTreePtr, ParametersPtr paramsPtr, MultipleLeafPtr *multiple );
 static void createTreeWith3LeavesRandomly( TreePtr phyloTreePtr );
 static void selectLeafNodeByName( 
     TreePtr phyloTreePtr, TreeNodePtr *nodePtr, char * name );
@@ -1002,7 +1002,8 @@ static void createTopologyFromGraphByBFS(
     }//end-while
 }
 
-int createInitialTreeTopology( TreePtr phyloTreePtr, ParametersPtr paramsPtr )
+int createInitialTreeTopology( 
+    TreePtr phyloTreePtr, ParametersPtr paramsPtr, MultipleLeafPtr *multiple )
 {
     int i, maxIterations, score, newScore;
     Tree temporalTree1, temporalTree2;
@@ -1023,15 +1024,15 @@ int createInitialTreeTopology( TreePtr phyloTreePtr, ParametersPtr paramsPtr )
         allocateMemoryForNodes( &temporalTree2, paramsPtr );
 
         copyTreeInto( &temporalTree1, phyloTreePtr, TRUE, paramsPtr );//make a fresh copy
-        createTreeRandomLeaf_FirstBestEdge( &temporalTree1, paramsPtr );
+        createTreeRandomLeaf_FirstBestEdge( &temporalTree1, paramsPtr, multiple );
 
-        score = labelOptimizeTree( &temporalTree1, paramsPtr );//from iterate_tree.c
+        score = labelOptimizeTree( &temporalTree1, paramsPtr, multiple );//from iterate_tree.c
         if ( DEBUG ){ printf( "[Initial tree score: %d]\n",score ); }
 
         for ( i = 1; i < maxIterations; i++ ) {
             copyTreeInto( &temporalTree2, phyloTreePtr, TRUE, paramsPtr );//make a fresh copy
-            createTreeRandomLeaf_FirstBestEdge( &temporalTree2, paramsPtr );
-            newScore = labelOptimizeTree( &temporalTree2, paramsPtr );//from iterate_tree.c
+            createTreeRandomLeaf_FirstBestEdge( &temporalTree2, paramsPtr, multiple );
+            newScore = labelOptimizeTree( &temporalTree2, paramsPtr, multiple );//from iterate_tree.c
             if ( DEBUG ){ printf( "[Initial tree score: %d]\n", newScore );}
 
             if ( newScore < score ) {
@@ -1074,7 +1075,8 @@ static void createTreeTopologyRandomly( TreePtr phyloTreePtr )
 /* 2nd initialization method:
 * Create a tree by inserting a "random leaf" into 
 * the edge that leads to the "first best" score */
-static void createTreeRandomLeaf_FirstBestEdge( TreePtr phyloTreePtr, ParametersPtr paramsPtr ) 
+static void createTreeRandomLeaf_FirstBestEdge( 
+    TreePtr phyloTreePtr, ParametersPtr paramsPtr, MultipleLeafPtr *multiple ) 
 {
 	int i, j, score, newScore;
 	TreeNodePtr node1Ptr, node2Ptr, node3Ptr, nodeTmpPtr, internalNodePtr;
@@ -1146,7 +1148,7 @@ static void createTreeRandomLeaf_FirstBestEdge( TreePtr phyloTreePtr, Parameters
 	node2Ptr->ancestorPtr = internalNodePtr;
 	node3Ptr->ancestorPtr = internalNodePtr;
 
-    score = labelOptimizeTree( phyloTreePtr, paramsPtr );//--from iterate_tree.c 
+    score = labelOptimizeTree( phyloTreePtr, paramsPtr, multiple );//--from iterate_tree.c 
 
 	for ( i = 0; i < phyloTreePtr->numberLeaves; i++ ) {
 		if ( phyloTreePtr->nodesPtrArray[i]->avaliable == TRUE ) {
@@ -1157,7 +1159,7 @@ static void createTreeRandomLeaf_FirstBestEdge( TreePtr phyloTreePtr, Parameters
 			/* link to the temporal node instead of node 3 */
 			internalNodePtr->rightDescPtr = nodeTmpPtr;
 			nodeTmpPtr->ancestorPtr = internalNodePtr;
-			newScore = labelOptimizeTree( phyloTreePtr, paramsPtr );//--from iterate_tree.c
+			newScore = labelOptimizeTree( phyloTreePtr, paramsPtr, multiple );//--from iterate_tree.c
 
 			if ( newScore < score ) {
 				score = newScore;
@@ -1213,7 +1215,7 @@ static void createTreeRandomLeaf_FirstBestEdge( TreePtr phyloTreePtr, Parameters
         linkNodeIntoEdge( phyloTreePtr, nodePtr, internalNodePtr, startNodePtr, endNodePtr );
 
 		/* select the edge that leads to the first best score */
-        score = labelOptimizeTree( phyloTreePtr, paramsPtr );//--from iterate_tree.c
+        score = labelOptimizeTree( phyloTreePtr, paramsPtr, multiple);//--from iterate_tree.c
 
         while ( j < phyloTreePtr->numberNodes ) {
             /*if node is not the root */
@@ -1232,7 +1234,7 @@ static void createTreeRandomLeaf_FirstBestEdge( TreePtr phyloTreePtr, Parameters
                     linkNodeIntoEdge( phyloTreePtr, nodePtr, internalNodePtr, tmpStartNodePtr, tmpEndNodePtr );
                     /* test if this new tree is better than the former */
 
-                    newScore = labelOptimizeTree( phyloTreePtr, paramsPtr );//--from iterate_tree.c                    
+                    newScore = labelOptimizeTree( phyloTreePtr, paramsPtr, multiple );//--from iterate_tree.c                    
                     if ( newScore < score ) {
                         if ( DEBUG ) {
                             printf( "[initial tree improved]" );

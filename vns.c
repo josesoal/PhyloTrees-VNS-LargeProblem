@@ -22,7 +22,7 @@ static void randomSubtreePR(TreePtr phyloTreePtr);
 static void randomTreeBR(TreePtr phyloTreePtr);
 static void disableSubtree(TreeNodePtr subtreeNodePtr, int *enabled, int *counterPtr);
 
-int VNS(TreePtr phyloTreePtr, ParametersPtr paramsPtr )
+int VNS(TreePtr phyloTreePtr, ParametersPtr paramsPtr, MultipleLeafPtr *multiple )
 {
 	Tree temporalTree;
 	int kmax = 4; /* number of neighborhood */
@@ -37,7 +37,7 @@ int VNS(TreePtr phyloTreePtr, ParametersPtr paramsPtr )
 	allocateMemoryForNodes( &temporalTree, paramsPtr );//--method from tree.c
 
 	/*VNS*/
-	score = labelOptimizeTree( phyloTreePtr, paramsPtr );//--method from iterate_tree.c
+	score = labelOptimizeTree( phyloTreePtr, paramsPtr, multiple );//--method from iterate_tree.c
 	while ( iteration <= maxIterations ) {
 		int k = 1;
 		while ( k <= kmax ) {
@@ -51,7 +51,7 @@ int VNS(TreePtr phyloTreePtr, ParametersPtr paramsPtr )
 			// dont apply  LS at the moment
 			
 			/* Move or not */
-			newScore = labelOptimizeTree( &temporalTree, paramsPtr );//--method from iterate_tree.c
+			newScore = labelOptimizeTree( &temporalTree, paramsPtr, multiple );//--method from iterate_tree.c
 
 			if ( newScore < score ){
 				score = newScore;
@@ -542,7 +542,8 @@ static void disableSubtree(TreeNodePtr subtreeNodePtr, int *enabled, int *counte
 /* (EXHAUSTIVE MUTATION 1) 
 return the best score from a exhaustive search by swapping 
 two leaves ( in consecutive pairs (i, i+1) ) */
-int exhaustiveLeafSwap( TreePtr phyloTreePtr, ParametersPtr paramsPtr, int pScore )
+int exhaustiveLeafSwap( 
+	TreePtr phyloTreePtr, ParametersPtr paramsPtr, int pScore, MultipleLeafPtr *multiple )
 {
 	int i,j,score,newScore,copy, restart;
 	Tree temporalTree;
@@ -595,7 +596,7 @@ int exhaustiveLeafSwap( TreePtr phyloTreePtr, ParametersPtr paramsPtr, int pScor
 		relinkNode( node2Ptr, internalNode1Ptr );//--from tree.c
 
 		/* calculate newScore */ 
-		newScore = labelOptimizeTree( &temporalTree, paramsPtr );//from iterate_tree.c
+		newScore = labelOptimizeTree( &temporalTree, paramsPtr, multiple );//from iterate_tree.c
 
 		if ( newScore < score ) {
 			score = newScore;
@@ -619,7 +620,8 @@ int exhaustiveLeafSwap( TreePtr phyloTreePtr, ParametersPtr paramsPtr, int pScor
 
 /* (EXHAUSTIVE MUTATION 2) 
 return the best score from a exhaustive scramble over subtrees */
-int exhaustiveSubtreeScramble(TreePtr phyloTreePtr, ParametersPtr paramsPtr, int pScore )
+int exhaustiveSubtreeScramble(
+	TreePtr phyloTreePtr, ParametersPtr paramsPtr, int pScore, , MultipleLeafPtr *multiple )
 {
 	int i, k, score, score1, score2, score3, score4, restart;
 	Tree temporalTree1, temporalTree2, temporalTree3, temporalTree4;
@@ -673,7 +675,7 @@ int exhaustiveSubtreeScramble(TreePtr phyloTreePtr, ParametersPtr paramsPtr, int
 			/* relink the nodes by swapping them */
 			relinkNode(nodeR_Ptr, internalNode2Ptr);
 			relinkNode(nodeLL_Ptr, internalNode1Ptr);
-			score1 = labelOptimizeTree( &temporalTree1, paramsPtr );//from iterate_tree.c
+			score1 = labelOptimizeTree( &temporalTree1, paramsPtr, multiple );//from iterate_tree.c
 
 			/* [swap THE RIGHT DESCENDANT of the subtree with THE RIGHT DESCENDANT 
 			of the left descendant of the subtree] */
@@ -688,7 +690,7 @@ int exhaustiveSubtreeScramble(TreePtr phyloTreePtr, ParametersPtr paramsPtr, int
 			/* relink the nodes by swapping them */
 			relinkNode(nodeR_Ptr, internalNode2Ptr);
 			relinkNode(nodeLR_Ptr, internalNode1Ptr);
-			score2 = labelOptimizeTree( &temporalTree2, paramsPtr );//from iterate_tree.c
+			score2 = labelOptimizeTree( &temporalTree2, paramsPtr, multiple );//from iterate_tree.c
 		}
 
 		/* explore the right descendant of the subtree */
@@ -710,7 +712,7 @@ int exhaustiveSubtreeScramble(TreePtr phyloTreePtr, ParametersPtr paramsPtr, int
 			/* relink the nodes by swapping them */
 			relinkNode(nodeL_Ptr, internalNode2Ptr);
 			relinkNode(nodeRL_Ptr, internalNode1Ptr);
-			score3 = labelOptimizeTree( &temporalTree3, paramsPtr );//from iterate_tree.c
+			score3 = labelOptimizeTree( &temporalTree3, paramsPtr, multiple );//from iterate_tree.c
 
 			/* [swap THE LEFT DESCENDANT of the subtree with THE RIGHT DESCENDANT 
 			of the right descendant of the subtree] */
@@ -725,7 +727,7 @@ int exhaustiveSubtreeScramble(TreePtr phyloTreePtr, ParametersPtr paramsPtr, int
 			/* relink the nodes by swapping them */
 			relinkNode(nodeL_Ptr, internalNode2Ptr);
 			relinkNode(nodeRR_Ptr, internalNode1Ptr);
-			score4 = labelOptimizeTree( &temporalTree4, paramsPtr );//from iterate_tree.c
+			score4 = labelOptimizeTree( &temporalTree4, paramsPtr, multiple );//from iterate_tree.c
 		}
 
 		/* determine which tree is the best */

@@ -13,7 +13,8 @@
 #include "structs.h"
 #include "my_structs.h"
 
-int labelOptimizeTree( TreePtr phyloTreePtr, ParametersPtr paramsPtr );
+int labelOptimizeTree( TreePtr phyloTreePtr, 
+			ParametersPtr paramsPtr, MultipleLeafPtr *multiple );
 int scoreTree( TreePtr phyloTreePtr, TreeNodePtr nodePtr, ParametersPtr paramsPtr );
 int calculateDistance( int *genome1, int *genome2, int numberGenes, ParametersPtr paramsPtr );
 
