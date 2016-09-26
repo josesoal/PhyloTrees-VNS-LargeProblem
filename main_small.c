@@ -33,10 +33,10 @@ int main( int argc, char **argv )
     struct timeval t_ini, t_fin;
     gettimeofday( &t_ini, NULL );//---------------------------take start time--
     
-    Tree            phyloTree;
+    Tree            phyloTree, tempTree;
     RawDataset      rdataset; 
     SetKeys         setkeys;  /* set of keys for condensing genomes */
-    int             score;
+    int             score, i;
     Parameters      params;
 
     MultipleLeafPtr *multiple; /*in case of multiple genomes per leaf*/
@@ -57,31 +57,43 @@ int main( int argc, char **argv )
     findSetKeysForCondensing( &rdataset, &setkeys );//--from condense.c
     condenseGenomes( &rdataset, &setkeys );//--from condense.c
 
-    /* read genomes from raw data into phylogenetic tree */
-    readNumberLeavesAndGenes( &phyloTree, &params, &rdataset );//--from tree.c     
-    allocateMemoryForNodes( &phyloTree, &params );//--from tree.c    
-    readGenomesFromRawData( 
-        &phyloTree, &params, &rdataset, &multiple );//--from tree.c    
+    for ( i = 0; i < params.iterations; i++ ) {
+        /* read genomes from raw data into phylogenetic tree */
+        readNumberLeavesAndGenes( &phyloTree, &params, &rdataset );//--from tree.c     
+        allocateMemoryForNodes( &phyloTree, &params );//--from tree.c    
+        readGenomesFromRawData( 
+            &phyloTree, &params, &rdataset, &multiple );//--from tree.c
 
-    createTopologyFromNewickFormat( &phyloTree, &params );//from tree.c  
-    score = labelOptimizeTree( &phyloTree, &params, multiple );//--iterate tree.c
+        /* create topology and optimize tree */
+        createTopologyFromNewickFormat( &phyloTree, &params );//from tree.c  
+        score = labelOptimizeTree( &phyloTree, &params, multiple, tempTree, i );//--iterate tree.c
+        printf( "%d\n", score );
 
-    //showTreeNewickFormat( phyloTree.startingNodePtr, SHOW_BY_NAME );//from tree.c
+        /* copy phyloTree into a tempTree */
+        tempTree.numberLeaves = phyloTree.numberLeaves;
+        tempTree.numberGenes = phyloTree.numberGenes;
+        allocateMemoryForNodes( &tempTree, &params )//--from tree.c
+        copyTreeInto( &tempTree, &phyloTree, FALSE, &params);//--from tree.c
+
+        freeMultipleLeafs( &phyloTree, &multiple, &params );//--from tree.c
+        freeTree( &phyloTree, &params );//--from tree.c
+    }
+
     gettimeofday( &t_fin, NULL );//---------------------------take final time--
-    double timediff = timeval_diff( &t_fin, &t_ini );//--from measure_time.h
-    
+    double timediff = timeval_diff( &t_fin, &t_ini );//--from measure_time.h   
+
     /* show results */
-    if ( SHOW_JUST_SCORE == TRUE ) 
+    /* if ( SHOW_JUST_SCORE == TRUE ) 
         printf( "%d %.2f\n", score, timediff );
     else 
         showResultsSmallPhylogeny( &phyloTree, 
-                    params.distanceType, score, timediff );//--from vns.c
+            params.distanceType, score, timediff );//--from tree.c
+    */
 
     /* free memory */
-    freeMultipleLeafs( &phyloTree, &multiple, &params );//--from tree.c
-    freeTree( &phyloTree, &params );//--from tree.c
+    freeTree( &tempTree, &params );//--from tree.c
     freeKeys( rdataset.numberGenes, &setkeys );//--from condense.c
-    freeRawDataset( &rdataset );//--from condense.c   
+    freeRawDataset( &rdataset );//--from condense.c
 
 	return 0;
 }
