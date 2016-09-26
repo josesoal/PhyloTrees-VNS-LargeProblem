@@ -55,6 +55,7 @@ struct parameters {
     enum initTreeMethod    	initMethod;
     enum optimizer         	opt;             /* optimizer for small phylogeny problem */
     int 					useMultipleGenomesOneLeaf; /* use multiple genomes for one leaf */ 
+    int 					iterations;		/* iterations for small phylogeny */
 };
 typedef struct parameters 	Parameters;
 typedef Parameters 			*ParametersPtr;

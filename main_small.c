@@ -78,10 +78,10 @@ int main( int argc, char **argv )
                     params.distanceType, score, timediff );//--from vns.c
 
     /* free memory */
-    freeKeys( rdataset.numberGenes, &setkeys );//--from condense.c
-    freeRawDataset( &rdataset );//--from condense.c
+    freeMultipleLeafs( &phyloTree, &multiple, &params );//--from tree.c
     freeTree( &phyloTree, &params );//--from tree.c
-    freeMultipleLeafs( &phyloTree, &multiple, &params );//--from tree.c ddd
+    freeKeys( rdataset.numberGenes, &setkeys );//--from condense.c
+    freeRawDataset( &rdataset );//--from condense.c   
 
 	return 0;
 }
@@ -101,6 +101,7 @@ static void initParameters( ParametersPtr paramsPtr )
     paramsPtr->initMethod       = R_LEAF_1BEST_EDGE;
     paramsPtr->opt              = BLANCHETTE; // (*)
     paramsPtr->useMultipleGenomesOneLeaf = FALSE;
+    paramsPtr->iterations       = 1;
 }
 
 static void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
@@ -156,6 +157,7 @@ static void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
                     else if ( strcmp( argv[ i + 1 ], "dcj" ) == 0 ) {
                         paramsPtr->distanceType = DCJ_DIST;
                         paramsPtr->opt = GREEDY_CANDIDATES;
+                        //paramsPtr->opt = KOVAC;
                     }
                     else {
                         fprintf( stderr, 
@@ -168,6 +170,9 @@ static void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
                     break;
                 case 'k':
                     paramsPtr->newickFile = argv[ i + 1 ]; 
+                    break;
+                case 'i':
+                    paramsPtr->iterations = atoi( argv[ i + 1 ] );
                     break;
                 case 'o':
                     if ( strcmp( argv[ i + 1 ], "gre" ) == 0 ) {
