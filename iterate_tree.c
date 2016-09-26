@@ -22,11 +22,11 @@
 
 static int labelOptimizeTree_Blanchette( 
 			TreePtr phyloTreePtr, int initialize, ParametersPtr paramsPtr );
-static int labelOptimizeTree_KovacDCJ( 
-			TreePtr phyloTreePtr, int initialize,  ParametersPtr paramsPtr );
+static int labelOptimizeTree_KovacDCJ( TreePtr phyloTreePtr, 
+			int initialize,  ParametersPtr paramsPtr, MultipleLeafPtr *multiple );
 static void generateCandidates( TreePtr phyloTreePtr, TreeNodePtr nodePtr,
 						CandidatePtr **candidateMatrix, int *numCandidates, 
-						ParametersPtr paramsPtr ) ;
+						ParametersPtr paramsPtr );
 static void copyCurrentNodeIntoCandidate( TreePtr phyloTreePtr,
 				CandidatePtr candPtr, TreeNodePtr nodePtr, int copyInverse );
 static void calculateScoreCandidates( TreePtr phyloTreePtr, 
@@ -38,7 +38,10 @@ static void selectBestNeighborhood( TreePtr phyloTreePtr,
 					CandidatePtr **candidateMatrix, int *numCandidates );
 static int labelOptimizeTree_GreedyCandidatesDCJ( TreePtr phyloTreePtr, 
 	int initialize, ParametersPtr paramsPtr, MultipleLeafPtr *multiple );
-
+static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr, 
+	TreeNodePtr nodePtr, ParametersPtr paramsPtr );  
+static int improveTreebyLeafCandidates(TreePtr phyloTreePtr, 
+	ParametersPtr paramsPtr, MultipleLeafPtr *multiple, int pScore );
 static void initializeTreeUsingDFS( TreePtr phyloTreePtr, 
 			TreeNodePtr nodePtr, ParametersPtr paramsPtr );
 static void initializeTreeWithDescendants( TreePtr phyloTreePtr, 
@@ -52,11 +55,6 @@ static void callSolverAndLabelNode( TreePtr phyloTreePtr, TreeNodePtr nodePtr,
 	struct adj_struct *adjacencyList, enum medianSolvers solver, int circular );
 static void iterateTreeUsingDFS( 
 	TreePtr phyloTreePtr, TreeNodePtr nodePtr, ParametersPtr paramsPtr ); 
-static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr, 
-	TreeNodePtr nodePtr, ParametersPtr paramsPtr );  
-static int improveTreebyLeafCandidates(TreePtr phyloTreePtr, 
-	ParametersPtr paramsPtr, MultipleLeafPtr *multiple, int pScore );
-
 
 int labelOptimizeTree( TreePtr phyloTreePtr, 
 			ParametersPtr paramsPtr, MultipleLeafPtr *multiple )
@@ -74,7 +72,7 @@ int labelOptimizeTree( TreePtr phyloTreePtr,
 		else if ( paramsPtr->opt == KOVAC ) {
 			initialize = TRUE;
 			score = labelOptimizeTree_KovacDCJ( 
-							phyloTreePtr, initialize, paramsPtr);
+						phyloTreePtr, initialize, paramsPtr, multiple );
 		}
 		else if ( paramsPtr->opt == HERENCSAR ) {
 			//initialize = TRUE;
@@ -889,8 +887,8 @@ void freeCandidate( TreePtr phyloTreePtr, CandidatePtr *candPtr )
 	programming approach */
 /* NOTE: Implemented as proposed by Kovac (2011) in the paper "A Practical 
 	Algorithm for Ancestral Rearrangement Reconstruction" */
-static int labelOptimizeTree_KovacDCJ( 
-			TreePtr phyloTreePtr, int initialize,  ParametersPtr paramsPtr )
+static int labelOptimizeTree_KovacDCJ( TreePtr phyloTreePtr, 
+			int initialize,  ParametersPtr paramsPtr, MultipleLeafPtr *multiple )
 {
 	int i, index, real_i;
 	Tree tempTree;
