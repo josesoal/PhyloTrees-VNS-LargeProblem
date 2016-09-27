@@ -40,7 +40,7 @@ static int labelOptimizeTree_GreedyCandidatesDCJ(
 	TreePtr phyloTreePtr, int initialize, ParametersPtr paramsPtr, 
 	MultipleLeafPtr *multiple, TreePtr previousTreePtr, int iteration );
 static void improveTreebyCandidatesDCJ( TreePtr phyloTreePtr, 
-	TreeNodePtr nodePtr, ParametersPtr paramsPtr );  
+	TreeNodePtr nodePtr, ParametersPtr paramsPtr, TreePtr previousTreePtr, int iteration );  
 static int improveTreebyLeafCandidates(TreePtr phyloTreePtr, 
 	ParametersPtr paramsPtr, MultipleLeafPtr *multiple, int pScore );
 static void initializeTreeUsingDFS( TreePtr phyloTreePtr, 
@@ -73,6 +73,7 @@ int labelOptimizeTree( TreePtr phyloTreePtr, ParametersPtr paramsPtr,
 		}
 		else if ( paramsPtr->opt == KOVAC ) {
 			initialize = TRUE;
+			//continue here ...
 			score = labelOptimizeTree_KovacDCJ( 
 						phyloTreePtr, initialize, paramsPtr, 
 						multiple, previousTreePtr, iteration );
@@ -383,9 +384,9 @@ static int labelOptimizeTree_GreedyCandidatesDCJ(
 	improve = TRUE;
 	score = scoreTree( phyloTreePtr, phyloTreePtr->startingNodePtr->rightDescPtr, paramsPtr );
 	while ( improve == TRUE ) {
-		copyTreeInto( &tempTree, phyloTreePtr, FALSE, paramsPtr );/* make a copy of current tree */
+		copyTreeInto( &tempTree, phyloTreePtr, FALSE, paramsPtr );/* make a copy of current tree */		
 		improveTreebyCandidatesDCJ( phyloTreePtr, 
-			phyloTreePtr->startingNodePtr->rightDescPtr, paramsPtr );
+			phyloTreePtr->startingNodePtr->rightDescPtr, paramsPtr, previousTreePtr, iteration );
 		newScore = scoreTree( phyloTreePtr, 
 			phyloTreePtr->startingNodePtr->rightDescPtr, paramsPtr );
 		/* this function is used in case leaves have multiple candidates */
@@ -693,8 +694,9 @@ static void improveTreebyCandidatesDCJ(
 			}
 		}
 
-		/* copy node of previous tree */
+		/* copy node of previous tree as candidate */
 		if ( paramsPtr->problem == SMALL_PHYLOGENY && iteration > 0 ) {
+			allocateMemForCandidate( phyloTreePtr, &candidatePtrArray[ h ] );
 			copyCurrentNodeIntoCandidate( phyloTreePtr, candidatePtrArray[ h ], 
 						previousTreePtr->nodesPtrArray[ nodePtr->index ], TRUE );
 			h++;
@@ -952,6 +954,8 @@ static int labelOptimizeTree_KovacDCJ(
 
 	while ( improved == TRUE ) {
 		copyTreeInto( &tempTree, phyloTreePtr, FALSE, paramsPtr );
+		
+		// continue here ...
 		generateCandidates( phyloTreePtr, 
 			phyloTreePtr->startingNodePtr->rightDescPtr, 
 			candidateMatrix, numCandidates, paramsPtr );

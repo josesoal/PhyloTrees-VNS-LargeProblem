@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <limits.h>
 
 #include "my_structs.h"
 #include "condense.h"
@@ -36,7 +37,7 @@ int main( int argc, char **argv )
     Tree            phyloTree, tempTree;
     RawDataset      rdataset; 
     SetKeys         setkeys;  /* set of keys for condensing genomes */
-    int             score, i;
+    int             minScore, score, i;
     Parameters      params;
 
     MultipleLeafPtr *multiple; /*in case of multiple genomes per leaf*/
@@ -57,6 +58,7 @@ int main( int argc, char **argv )
     findSetKeysForCondensing( &rdataset, &setkeys );//--from condense.c
     condenseGenomes( &rdataset, &setkeys );//--from condense.c
 
+    minScore = INT_MAX;
     for ( i = 0; i < params.iterations; i++ ) {
         /* read genomes from raw data into phylogenetic tree */
         readNumberLeavesAndGenes( &phyloTree, &params, &rdataset );//--from tree.c     
@@ -65,15 +67,17 @@ int main( int argc, char **argv )
             &phyloTree, &params, &rdataset, &multiple );//--from tree.c
 
         /* create topology and optimize tree */
-        createTopologyFromNewickFormat( &phyloTree, &params );//from tree.c  
-        score = labelOptimizeTree( &phyloTree, &params, multiple, tempTree, i );//--iterate tree.c
-        printf( "%d\n", score );
+        createTopologyFromNewickFormat( &phyloTree, &params );//from tree.c 
+        score = labelOptimizeTree( 
+                    &phyloTree, &params, multiple, &tempTree, i );//--iterate tree.c
+        if ( DEBUG ) { printf( "iteration %d result : %d\n", i, score ); }
+        if ( score < minScore ) minScore = score;
 
         /* copy phyloTree into a tempTree */
         tempTree.numberLeaves = phyloTree.numberLeaves;
         tempTree.numberGenes = phyloTree.numberGenes;
-        allocateMemoryForNodes( &tempTree, &params )//--from tree.c
-        copyTreeInto( &tempTree, &phyloTree, FALSE, &params);//--from tree.c
+        allocateMemoryForNodes( &tempTree, &params );//--from tree.c
+        copyTreeInto( &tempTree, &phyloTree, TRUE, &params);//--from tree.c
 
         freeMultipleLeafs( &phyloTree, &multiple, &params );//--from tree.c
         freeTree( &phyloTree, &params );//--from tree.c
@@ -83,12 +87,11 @@ int main( int argc, char **argv )
     double timediff = timeval_diff( &t_fin, &t_ini );//--from measure_time.h   
 
     /* show results */
-    /* if ( SHOW_JUST_SCORE == TRUE ) 
-        printf( "%d %.2f\n", score, timediff );
+    if ( SHOW_JUST_SCORE == TRUE ) 
+        printf( "%d %.2f\n", minScore, timediff );
     else 
-        showResultsSmallPhylogeny( &phyloTree, 
-            params.distanceType, score, timediff );//--from tree.c
-    */
+        showResultsSmallPhylogeny( &tempTree, 
+            params.distanceType, minScore, timediff );//--from tree.c
 
     /* free memory */
     freeTree( &tempTree, &params );//--from tree.c

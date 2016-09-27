@@ -21,7 +21,6 @@ struct genomeNode {
 typedef struct genomeNode GNode;
 typedef GNode *GNodePtr;
 
-
 void allocateMemoryForNodes( TreePtr phyloTreePtr, ParametersPtr paramsPtr );
 void freeTree( TreePtr phyloTreePtr, ParametersPtr paramsPtr );
 void copyTreeInto( TreePtr phyloTree1Ptr, 
@@ -36,7 +35,8 @@ void freeMultipleLeafs(
 	TreePtr phyloTreePtr, MultipleLeafPtr **multiple, ParametersPtr paramsPtr );
 
 void createTopologyFromNewickFormat( TreePtr phyloTreePtr, ParametersPtr paramsPtr );
-int createInitialTreeTopology(TreePtr phyloTreePtr, ParametersPtr paramsPtr, MultipleLeafPtr *multiple );
+int createInitialTreeTopology(TreePtr phyloTreePtr, ParametersPtr paramsPtr, 
+	MultipleLeafPtr *multiple, TreePtr previousTreePtr, int iteration );
 
 void unlinkNode(TreeNodePtr nodePtr, TreeNodePtr *internalNodePtr);
 void relinkNode(TreeNodePtr nodePtr, TreeNodePtr internalNodePtr);
