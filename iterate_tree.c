@@ -26,8 +26,8 @@ static int labelOptimizeTree_KovacDCJ(
 	TreePtr phyloTreePtr, int initialize, ParametersPtr paramsPtr, 
 	MultipleLeafPtr *multiple, TreePtr previousTreePtr, int iteration );
 static void generateCandidates( TreePtr phyloTreePtr, TreeNodePtr nodePtr,
-						CandidatePtr **candidateMatrix, int *numCandidates, 
-						ParametersPtr paramsPtr );
+			CandidatePtr **candidateMatrix, int *numCandidates, 
+			ParametersPtr paramsPtr, TreePtr previousTreePtr, int iteration);
 static void copyCurrentNodeIntoCandidate( TreePtr phyloTreePtr,
 				CandidatePtr candPtr, TreeNodePtr nodePtr, int copyInverse );
 static void calculateScoreCandidates( TreePtr phyloTreePtr, 
@@ -580,17 +580,8 @@ static void improveTreebyCandidatesDCJ(
 				}
 
 				allocateMemForCandidate( phyloTreePtr, &candidatePtrArray[ h ] );
-
-				/* copy genomeDCJ */
-				candidatePtrArray[ h ]->numPointsDCJ = nodePtr->numPointsDCJ;
-				for ( k = 0; k < nodePtr->numPointsDCJ; k++ ) {
-					candidatePtrArray[ h ]->genomeDCJ[ k ]->x = 
-												nodePtr->genomeDCJ[ k ]->x;
-					candidatePtrArray[ h ]->genomeDCJ[ k ]->y = 
-												nodePtr->genomeDCJ[ k ]->y;
-					candidatePtrArray[ h ]->genomeDCJ[ k ]->type = 
-												nodePtr->genomeDCJ[ k ]->type;
-				}
+				copyCurrentNodeIntoCandidate( 
+						phyloTreePtr, candidatePtrArray[ h ], nodePtr, FALSE );
 
 				/* apply DCJ on copy and generate candidate */
 				applyDCJ( candidatePtrArray[ h ]->genomeDCJ, 
@@ -643,17 +634,8 @@ static void improveTreebyCandidatesDCJ(
 
 				allocateMemForCandidate( 
 									phyloTreePtr, &candidatePtrArray[ h ] );
-
-				/* copy genomeDCJ */
-				candidatePtrArray[ h ]->numPointsDCJ = nodePtr->numPointsDCJ;
-				for ( k = 0; k < nodePtr->numPointsDCJ; k++ ) {
-					candidatePtrArray[ h ]->genomeDCJ[ k ]->x = 
-												nodePtr->genomeDCJ[ k ]->x;
-					candidatePtrArray[ h ]->genomeDCJ[ k ]->y = 
-												nodePtr->genomeDCJ[ k ]->y;
-					candidatePtrArray[ h ]->genomeDCJ[ k ]->type = 
-												nodePtr->genomeDCJ[ k ]->type;
-				}
+				copyCurrentNodeIntoCandidate( 
+						phyloTreePtr, candidatePtrArray[ h ], nodePtr, FALSE );
 
 				/* apply DCJ on copy and generate candidate */
 				applyDCJ( candidatePtrArray[ h ]->genomeDCJ, 
@@ -670,17 +652,9 @@ static void improveTreebyCandidatesDCJ(
 
 					allocateMemForCandidate( 
 									phyloTreePtr, &candidatePtrArray[ h ] );
+					copyCurrentNodeIntoCandidate( 
+						phyloTreePtr, candidatePtrArray[ h ], nodePtr, FALSE );
 
-					/* copy genomeDCJ */
-					candidatePtrArray[ h ]->numPointsDCJ = nodePtr->numPointsDCJ;
-					for ( k = 0; k < nodePtr->numPointsDCJ; k++ ) {
-						candidatePtrArray[ h ]->genomeDCJ[ k ]->x = 
-												nodePtr->genomeDCJ[ k ]->x;
-						candidatePtrArray[ h ]->genomeDCJ[ k ]->y = 
-												nodePtr->genomeDCJ[ k ]->y;
-						candidatePtrArray[ h ]->genomeDCJ[ k ]->type = 
-												nodePtr->genomeDCJ[ k ]->type;
-					}
 					/* apply DCJ on copy and generate candidate */
 					applyDCJ( candidatePtrArray[ h ]->genomeDCJ, 
 						&candidatePtrArray[ h ]->numPointsDCJ, i, j, FALSE );//--from dcjdist.c
@@ -697,8 +671,9 @@ static void improveTreebyCandidatesDCJ(
 		/* copy node of previous tree as candidate */
 		if ( paramsPtr->problem == SMALL_PHYLOGENY && iteration > 0 ) {
 			allocateMemForCandidate( phyloTreePtr, &candidatePtrArray[ h ] );
-			copyCurrentNodeIntoCandidate( phyloTreePtr, candidatePtrArray[ h ], 
-						previousTreePtr->nodesPtrArray[ nodePtr->index ], TRUE );
+			copyCurrentNodeIntoCandidate( 
+					phyloTreePtr, candidatePtrArray[ h ], 
+					previousTreePtr->nodesPtrArray[ nodePtr->index ], TRUE );
 			h++;
 		}
 
@@ -857,7 +832,7 @@ static int improveTreebyLeafCandidates(TreePtr phyloTreePtr,
 
 		if ( DEBUG ) {
 			if (score < pScore) 
-				printf("***Tree improved by multiple leaves :%d --> %d***\n", pScore, score);
+				printf("[Tree improved by an alternative leaf :%d --> %d]\n", pScore, score);
 		}
 	}//end-if
 
@@ -912,8 +887,7 @@ static int labelOptimizeTree_KovacDCJ(
 {
 	int i, index, real_i;
 	Tree tempTree;
-	int *numCandidates; /* array of num. candidates for each internal node */
-	//int *maxCandidates; /* max. candidates allowed for each internal node */ 
+	int *numCandidates; /* array of num. candidates for each internal node */ 
 	int **scoreMatrix;
 	CandidatePtr **candidateMatrix;
 	int score, newScore, improved, numInternalNodes;
@@ -957,8 +931,8 @@ static int labelOptimizeTree_KovacDCJ(
 		
 		// continue here ...
 		generateCandidates( phyloTreePtr, 
-			phyloTreePtr->startingNodePtr->rightDescPtr, 
-			candidateMatrix, numCandidates, paramsPtr );
+			phyloTreePtr->startingNodePtr->rightDescPtr, candidateMatrix,
+			numCandidates, paramsPtr, previousTreePtr, iteration );
 		calculateScoreCandidates( phyloTreePtr, 
 			phyloTreePtr->startingNodePtr->rightDescPtr, 
 			scoreMatrix, candidateMatrix, numCandidates, paramsPtr, multiple );
@@ -1025,17 +999,17 @@ static int labelOptimizeTree_KovacDCJ(
 /* NOTE: in the first call of this procedure, the second argument 
 			must be the right descendant of the starting node */
 static void generateCandidates( TreePtr phyloTreePtr, TreeNodePtr nodePtr,
-						CandidatePtr **candidateMatrix, int *numCandidates, 
-						ParametersPtr paramsPtr ) 
+			CandidatePtr **candidateMatrix, int *numCandidates, 
+			ParametersPtr paramsPtr, TreePtr previousTreePtr, int iteration ) 
 {
 	int i, j, h, index, numA, numT;
 	int x, y, xpos, ypos, maxCandidates;
 
 	if ( nodePtr->type == INTERNAL_NODE ) { 
 		generateCandidates( phyloTreePtr, nodePtr->leftDescPtr, 
-						candidateMatrix, numCandidates, paramsPtr );
+			candidateMatrix, numCandidates, paramsPtr, previousTreePtr, iteration );
 		generateCandidates( phyloTreePtr, nodePtr->rightDescPtr, 
-						candidateMatrix, numCandidates, paramsPtr );
+			candidateMatrix, numCandidates, paramsPtr, previousTreePtr, iteration );
 
 		/* re-calculate index (of internal node) to be zero-based */
 		index = nodePtr->index - phyloTreePtr->numberLeaves; 
@@ -1054,6 +1028,10 @@ static void generateCandidates( TreePtr phyloTreePtr, TreeNodePtr nodePtr,
 			2 * numA * ( numA - 1 ) / 2 + 	// 2 * C(numA, 2), for case (1)
 			2 * numA * numT +				// for case (2)
 			numT / 2;						// for case (3)
+
+		if ( paramsPtr->problem == SMALL_PHYLOGENY && iteration > 0 ) {
+			maxCandidates = maxCandidates + 1;	// node of previous tree as candidate
+		}
 
 		/* allocate memory for array of candidates for nodePtr */
 		candidateMatrix[ index ] = 
@@ -1174,6 +1152,16 @@ static void generateCandidates( TreePtr phyloTreePtr, TreeNodePtr nodePtr,
 				}
 			}
 		}
+
+		/* copy node of previous tree as candidate */
+		if ( paramsPtr->problem == SMALL_PHYLOGENY && iteration > 0 ) {
+			allocateMemForCandidate( phyloTreePtr, &candidateMatrix[ index ][ h ] );
+			copyCurrentNodeIntoCandidate( 
+					phyloTreePtr, candidateMatrix[ index ][ h ], 
+					previousTreePtr->nodesPtrArray[ nodePtr->index ], TRUE );
+			h++;
+		}
+
 		numCandidates[ index ] = h;
 
 		/* if number of candidates is zero, create just one candidate with current node */
