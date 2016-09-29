@@ -73,7 +73,6 @@ int labelOptimizeTree( TreePtr phyloTreePtr, ParametersPtr paramsPtr,
 		}
 		else if ( paramsPtr->opt == KOVAC ) {
 			initialize = TRUE;
-			//continue here ...
 			score = labelOptimizeTree_KovacDCJ( 
 						phyloTreePtr, initialize, paramsPtr, 
 						multiple, previousTreePtr, iteration );
@@ -533,7 +532,7 @@ static void improveTreebyCandidatesDCJ(
 				penalization( nodePtr->genomeDCJ, 
 								nodePtr->inverseDCJ, 
 								nodePtr->numPointsDCJ,
-								paramsPtr ); //TODO: Include penalization
+								paramsPtr ); 
 
 		/* calculate max number of candidates for the current node */
 		numA = 0; //number of adjacencies
@@ -749,7 +748,6 @@ static void improveTreebyCandidatesDCJ(
 			freeCandidate( phyloTreePtr, &candidatePtrArray[ i ] );
 		}
 		free( candidatePtrArray );
-
 	}//end-if
 }
 
@@ -764,7 +762,9 @@ static int improveTreebyLeafCandidates(TreePtr phyloTreePtr,
 	if ( paramsPtr->useMultipleGenomesOneLeaf == TRUE ){
 		
 		for ( i = 0; i < phyloTreePtr->numberLeaves; i++ ) {
-			if ( multiple[ i ]->numLeafCandidates > 0 ) {
+			/* proceed if node is being used and has multiple leaves */
+			if (  phyloTreePtr->nodesPtrArray[ i ]->avaliable == FALSE && 
+					multiple[ i ]->numLeafCandidates > 0 ) {
 				/* determine the ancestor for distance calculation */
 				if (  phyloTreePtr->nodesPtrArray[ i ] ==
 								phyloTreePtr->startingNodePtr ) {
@@ -830,10 +830,10 @@ static int improveTreebyLeafCandidates(TreePtr phyloTreePtr,
 			}
 		}//end-for
 
-		if ( DEBUG ) {
+		/* if ( DEBUG ) {
 			if (score < pScore) 
 				printf("[Tree improved by an alternative leaf :%d --> %d]\n", pScore, score);
-		}
+		} */
 	}//end-if
 
 	return score; 

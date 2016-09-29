@@ -1031,6 +1031,7 @@ int createInitialTreeTopology(
 
         score = labelOptimizeTree( 
             &temporalTree1, paramsPtr, multiple, previousTreePtr, iteration );//from iterate_tree.c
+
         if ( DEBUG ){ printf( "[Initial tree score: %d]\n",score ); }
 
         for ( i = 1; i < maxIterations; i++ ) {
@@ -1262,7 +1263,6 @@ static void createTreeRandomLeaf_FirstBestEdge(
             j++;
         }//end while
 	}//end for
-
 }
 
 /* 3rd initialization method:

@@ -40,6 +40,8 @@ int main( int argc, char **argv )
     int             score;
     Parameters      params;
 
+    MultipleLeafPtr *multiple; /*in case of multiple genomes per leaf*/
+
     initParameters( &params );
     readCommandLine( argc, argv, &params );
     srand( params.seed ); if ( DEBUG ) { printf( "\nseed: %d\n", params.seed ); }
@@ -59,14 +61,14 @@ int main( int argc, char **argv )
     /* read genomes from raw data into phylogenetic tree */
     readNumberLeavesAndGenes( &phyloTree, &params, &rdataset );//--from tree.c 
     allocateMemoryForNodes( &phyloTree, &params );//--from tree.c
-    readGenomesFromRawData( &phyloTree, &params, &rdataset );//--from tree.c 
+    readGenomesFromRawData( &phyloTree, &params, &rdataset, &multiple );//--from tree.c 
 
-    score = createInitialTreeTopology( &phyloTree, &params ); //--from tree.c
-    score = VNS( &phyloTree, &params );//--from vns.c
+    score = createInitialTreeTopology( &phyloTree, &params, multiple, NULL, 0 ); //--from tree.c
+    score = VNS( &phyloTree, &params, multiple );//--from vns.c
 
     /* refine the final tree by using an exhaustive mutation procedures */
-    score = exhaustiveSubtreeScramble( &phyloTree, &params, score );
-    score = exhaustiveLeafSwap( &phyloTree, &params, score );
+    score = exhaustiveSubtreeScramble( &phyloTree, &params, score, multiple );
+    score = exhaustiveLeafSwap( &phyloTree, &params, score, multiple );
 
     gettimeofday( &t_fin, NULL );//---------------------------------take final time--
     double timediff = timeval_diff( &t_fin, &t_ini );//--from measure_time.h
@@ -76,9 +78,10 @@ int main( int argc, char **argv )
     else showResults( &phyloTree, params.distanceType, score, timediff );//--from vns.c
 
     /* free memory */
+    freeMultipleLeafs( &phyloTree, &multiple, &params );//--from tree.c
+    freeTree( &phyloTree, &params );//--from tree.c
     freeKeys( rdataset.numberGenes, &setkeys );//--from condense.c
     freeRawDataset( &rdataset );//--from condense.c
-    freeTree( &phyloTree, &params );//--from tree.c
 
 	return 0;
 }
@@ -111,23 +114,24 @@ static void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
         fprintf( stdout, "\t\t -d rev : reversal\n\t\t -d dcj : double-cut-join\n");
         fprintf( stdout, "\t-f : dataset filename\n" );
         fprintf( stdout, "\t\t -f filename\n" );
-        fprintf( stdout, "\t-o : [optional] optimization method for DCJ\n" );
-        fprintf( stdout, "\t\t -o gre : Greedy Candidates opt.\n" );
-        fprintf( stdout, "\t\t -o kov : Kovac opt.\n" );
-        fprintf( stdout, "\t\t(Greedy Candidates opt is used by default if option is omitted)\n" );
         fprintf( stdout, "\t-s : seed [optional]\n" );
         fprintf( stdout, "\t\t -s some_seed\n" );
         fprintf( stdout, "\t\t(seed taken from system time by default if option is omitted)\n" );
         fprintf( stdout, "\t-g : [optional] use an outgroup\n" );
         fprintf( stdout, "\t\t -g outgroup\n" );
-        fprintf( stdout, "\t\t(outgroup is not used by default if option is omitted).\n" );
-        fprintf( stdout, "\t-r : [optional] preferred dcj genome structure \n" );
+        fprintf( stdout, "\t\t(outgroup is not used by default if option is omitted).\n\n" );
+        fprintf( stdout, "\t*** The following options work just for the DCJ distance (-d dcj) : \n\n");
+        fprintf( stdout, "\t-o : [optional] optimization method for DCJ\n" );
+        fprintf( stdout, "\t\t -o gre : Greedy Candidates opt.\n" );
+        fprintf( stdout, "\t\t -o kov : Kovac opt.\n" );
+        fprintf( stdout, "\t\t(Greedy Candidates opt is used by default if option is omitted)\n" );
+        fprintf( stdout, "\t-r : [optional] preferred DCJ genome structure \n" );
         fprintf( stdout, "\t\t -r 0 : any genome structure\n" );
         fprintf( stdout, "\t\t -r 1 : one circular chromosome\n" );
         fprintf( stdout, "\t\t -r 2 : one or more linear chromosomes\n" );    
         fprintf( stdout, "\t\t -r 3 : one circular, or one or more linear chromosomes\n" );
-        fprintf( stdout, "\t\t( -r 0 is used by default if option is omitted)\n" );
-        fprintf( stdout, "\t-v: [optional] alternative multiple genomes for DCJ.\n" );
+        fprintf( stdout, "\t\t(-r 0 is used by default if option is omitted)\n" );
+        fprintf( stdout, "\t-v: [optional] alternative multiple genomes for DCJ distance.\n" );
         fprintf( stdout, "\t\t(this option is not used if omitted)\n\n" );
         //fprintf( stdout, " using the default testset: testsets/camp05_cond\n" );
         //fprintf( stdout, " try other >> ./main -t testsets/camp07_cond\n" );
@@ -198,7 +202,17 @@ static void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
                     }
                     break;
                 case 'v':
-                    paramsPtr->useMultipleGenomesOneLeaf = TRUE;
+                    if ( strcmp( argv[ i + 1 ], "0" ) == 0 ) {
+                        paramsPtr->useMultipleGenomesOneLeaf = FALSE;
+                    }
+                    else if ( strcmp( argv[ i + 1 ], "1" ) == 0 ) {
+                        paramsPtr->useMultipleGenomesOneLeaf = TRUE;
+                    }
+                    else {
+                        fprintf( stderr, 
+                            " stderr: incorrect option for multiple genomes (-v).\n" );
+                        exit( EXIT_FAILURE ); 
+                    }                    
                     break;
                 default:
                     fprintf( stderr, " stderr: incorrect option: %c.\n", option );
@@ -419,8 +433,8 @@ static void readRawData( char *filename, RawDatasetPtr rdatasetPtr )
             }
 
             /* copy buffer into leaf node*/
-            rdatasetPtr->rgenomePtrArray[ i ]->organism = malloc( ( k + 1 ) * sizeof( char ) );
-            strcpy( rdatasetPtr->rgenomePtrArray[ i ]->organism, buffer ); 
+            rdatasetPtr->rgenomes[ i ]->organism = malloc( ( k + 1 ) * sizeof( char ) );
+            strcpy( rdatasetPtr->rgenomes[ i ]->organism, buffer ); 
 
             /* read genes from next line*/
             k = 0; j = 0; h = 0;
@@ -428,15 +442,15 @@ static void readRawData( char *filename, RawDatasetPtr rdatasetPtr )
                 if ( c == ' ' || c == '@' || c == '$' || c == '\n' ){
                     buffer[ k ] = '\0';
                     if ( k > 0 ) {
-                        rdatasetPtr->rgenomePtrArray[ i ]->genome[ j ] = atoi( buffer );
+                        rdatasetPtr->rgenomes[ i ]->genome[ j ] = atoi( buffer );
                         j++;
                         //printf("%d,", atoi(buffer));    
                     }
                     k = 0;
 
                     if ( c == '@' || c == '$') {
-                        rdatasetPtr->rgenomePtrArray[ i ]->genome[ j ] = SPLIT;
-                        rdatasetPtr->rgenomePtrArray[ i ]->chromosomeType[ h ] = 
+                        rdatasetPtr->rgenomes[ i ]->genome[ j ] = SPLIT;
+                        rdatasetPtr->rgenomes[ i ]->chromosomeType[ h ] = 
                                         ( c == '@' ? CIRCULAR_SYM : LINEAR_SYM );
                         j++;
                         h++;
