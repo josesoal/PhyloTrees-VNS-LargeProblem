@@ -19,7 +19,9 @@
 #include "stack_array.h" 
 #include "int_queue.h"
 
-static void readGenomes( TreePtr phyloTreePtr, RawDatasetPtr rdatasetPtr );
+static int countNumDifferentLeaves( RawDatasetPtr rdatasetPtr ); 
+static void readGenomes( 
+    TreePtr phyloTreePtr, ParametersPtr paramsPtr, RawDatasetPtr rdatasetPtr );
 static void readGenomesDCJ( TreePtr phyloTreePtr, RawDatasetPtr rdatasetPtr );
 static void countGenomesPerLeaf( TreePtr phyloTreePtr, 
                 RawDatasetPtr rdatasetPtr, MultipleLeafPtr **multiple );
@@ -292,55 +294,77 @@ void copyTreeInto( TreePtr phyloTree1Ptr,
 void readNumberLeavesAndGenes( 
     TreePtr phyloTreePtr, ParametersPtr paramsPtr, RawDatasetPtr rdatasetPtr ) 
 {
-    int i, j, numberLeaves, count; 
-    int *visited;
+    int numDifferentLeaves;
 
-    if ( paramsPtr->useMultipleGenomesOneLeaf == TRUE ) {
-        visited = malloc( rdatasetPtr->numberGenomes * sizeof( int ) );
-        if ( visited == NULL )
-            nomemMessage( "visited" );
-        for ( i = 0; i < rdatasetPtr->numberGenomes; i++ ) { 
-            visited[ i ] = FALSE; 
-        }
+    numDifferentLeaves = countNumDifferentLeaves( rdatasetPtr );
 
-        /* count number of different leaves */
-        numberLeaves = 0;
-        for ( i = 0; i < rdatasetPtr->numberGenomes; i++ ) {
-            count = TRUE;
-            for ( j = 0; j < rdatasetPtr->numberGenomes; j++ ) {
-                if ( i != j && 
-                    strcmp( rdatasetPtr->rgenomes[ i ]->organism,
-                    rdatasetPtr->rgenomes[ j ]->organism ) == 0 &&
-                    visited[ j ] == TRUE ) 
-                {
-                    count = FALSE;
-                    break;
-                }
-            }
-            visited[ i ] = TRUE;
-            if ( count == TRUE ) {
-                numberLeaves++;
-            }              
-        }
+    if ( numDifferentLeaves < rdatasetPtr->numberGenomes ) {
+        paramsPtr->useMultipleGenomesOneLeaf = TRUE;
 
-        phyloTreePtr->numberLeaves = numberLeaves;
+        phyloTreePtr->numberLeaves = numDifferentLeaves;
         phyloTreePtr->numberGenes = rdatasetPtr->numberGenes;
-
-        free( visited );
     }
-    else { //use one genome per leaf
+    else { //one leaf per genome
+        paramsPtr->useMultipleGenomesOneLeaf = FALSE;
+
         phyloTreePtr->numberLeaves = rdatasetPtr->numberGenomes;
         phyloTreePtr->numberGenes = rdatasetPtr->numberGenes;
     }
+
+    /* discard some undesired cases */
+    if ( paramsPtr->distanceType == INVERSION_DIST && 
+            paramsPtr->useMultipleGenomesOneLeaf == TRUE ) {
+        fprintf( stderr, 
+            " stderr: the program does not support using the reversal" );
+        fprintf( stderr, " distance and alternative multiple genomes for a leaf.\n" );
+        exit( EXIT_FAILURE );
+    }
 }
 
+static int countNumDifferentLeaves( RawDatasetPtr rdatasetPtr ) 
+{
+    int i, j, numberLeaves, count; 
+    int *visited;
+
+    visited = malloc( rdatasetPtr->numberGenomes * sizeof( int ) );
+    if ( visited == NULL )
+        nomemMessage( "visited" );
+    for ( i = 0; i < rdatasetPtr->numberGenomes; i++ ) { 
+        visited[ i ] = FALSE; 
+    }
+
+    /* count number of different leaves */
+    numberLeaves = 0;
+    for ( i = 0; i < rdatasetPtr->numberGenomes; i++ ) {
+        count = TRUE;
+        for ( j = 0; j < rdatasetPtr->numberGenomes; j++ ) {
+            if ( i != j && 
+                strcmp( rdatasetPtr->rgenomes[ i ]->organism,
+                rdatasetPtr->rgenomes[ j ]->organism ) == 0 &&
+                visited[ j ] == TRUE ) 
+            {
+                count = FALSE;
+                break;
+            }
+        }
+        visited[ i ] = TRUE;
+        if ( count == TRUE ) {
+            numberLeaves++;
+        }              
+    }
+
+    free( visited );
+
+    return numberLeaves;
+}
+
+/* NOTE: before calling this function, you have to call the functions
+    "readNumberLeavesAndGenes" and "allocateMemoryForNodes" */
 void readGenomesFromRawData( TreePtr phyloTreePtr, ParametersPtr paramsPtr, 
             RawDatasetPtr rdatasetPtr, MultipleLeafPtr **multiple ) 
 {
-    
-
     if ( paramsPtr->distanceType == INVERSION_DIST ) {
-        readGenomes( phyloTreePtr, rdatasetPtr );
+        readGenomes( phyloTreePtr, paramsPtr, rdatasetPtr );
     }
     else if ( paramsPtr->distanceType == DCJ_DIST ) {
         if ( paramsPtr->useMultipleGenomesOneLeaf == TRUE ) {
@@ -359,7 +383,8 @@ void readGenomesFromRawData( TreePtr phyloTreePtr, ParametersPtr paramsPtr,
     }
 }
 
-static void readGenomes( TreePtr phyloTreePtr, RawDatasetPtr rdatasetPtr )
+static void readGenomes( 
+    TreePtr phyloTreePtr, ParametersPtr paramsPtr, RawDatasetPtr rdatasetPtr )
 {
     int i, j, k;
     int endSymbol, previousEndSymbol;
@@ -392,8 +417,11 @@ static void readGenomes( TreePtr phyloTreePtr, RawDatasetPtr rdatasetPtr )
             }
             previousEndSymbol = endSymbol;
         }
-
     }
+
+    /* determine if all element of dataset are circular or linear */
+    if ( endSymbol == LINEAR_SYM ) paramsPtr->circular = FALSE;
+    if ( endSymbol == CIRCULAR_SYM ) paramsPtr->circular = TRUE;
 }
 
 static void readGenomesDCJ( TreePtr phyloTreePtr, RawDatasetPtr rdatasetPtr )

@@ -91,14 +91,14 @@ static void initParameters( ParametersPtr paramsPtr )
     paramsPtr->problem          = LARGE_PHYLOGENY;
     paramsPtr->seed             = time( NULL);
     paramsPtr->testsetName      = "";
-    paramsPtr->circular         = TRUE; //Not used here. Must be updated in readGenome() - tree.c
+    paramsPtr->circular         = TRUE; //This value is set in function readGenomes() at tree.c
     paramsPtr->distanceType     = INVERSION_DIST;
     paramsPtr->solver           = CAPRARA_INV_MEDIAN;
     paramsPtr->useOutgroup      = FALSE;
     paramsPtr->outgroup         = "";
     paramsPtr->preferredType    = ANY;
     paramsPtr->initMethod       = R_LEAF_1BEST_EDGE;
-    paramsPtr->opt              = BLANCHETTE; // (*)
+    paramsPtr->opt              = BLANCHETTE;
     paramsPtr->useMultipleGenomesOneLeaf = FALSE;
 }
 
@@ -114,7 +114,7 @@ static void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
         fprintf( stdout, "\t\t -d rev : reversal\n\t\t -d dcj : double-cut-join\n");
         fprintf( stdout, "\t-f : dataset filename\n" );
         fprintf( stdout, "\t\t -f filename\n" );
-        fprintf( stdout, "\t-s : seed [optional]\n" );
+        fprintf( stdout, "\t-s : [optional] seed \n" );
         fprintf( stdout, "\t\t -s some_seed\n" );
         fprintf( stdout, "\t\t(seed taken from system time by default if option is omitted)\n" );
         fprintf( stdout, "\t-g : [optional] use an outgroup\n" );
@@ -130,11 +130,7 @@ static void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
         fprintf( stdout, "\t\t -r 1 : one circular chromosome\n" );
         fprintf( stdout, "\t\t -r 2 : one or more linear chromosomes\n" );    
         fprintf( stdout, "\t\t -r 3 : one circular, or one or more linear chromosomes\n" );
-        fprintf( stdout, "\t\t(-r 0 is used by default if option is omitted)\n" );
-        fprintf( stdout, "\t-v: [optional] alternative multiple genomes for DCJ distance.\n" );
-        fprintf( stdout, "\t\t(this option is not used if omitted)\n\n" );
-        //fprintf( stdout, " using the default testset: testsets/camp05_cond\n" );
-        //fprintf( stdout, " try other >> ./main -t testsets/camp07_cond\n" );
+        fprintf( stdout, "\t\t(-r 0 is used by default if option is omitted)\n\n" );
         exit( EXIT_FAILURE );
     }
 
@@ -201,19 +197,6 @@ static void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
                         exit( EXIT_FAILURE ); 
                     }
                     break;
-                case 'v':
-                    if ( strcmp( argv[ i + 1 ], "0" ) == 0 ) {
-                        paramsPtr->useMultipleGenomesOneLeaf = FALSE;
-                    }
-                    else if ( strcmp( argv[ i + 1 ], "1" ) == 0 ) {
-                        paramsPtr->useMultipleGenomesOneLeaf = TRUE;
-                    }
-                    else {
-                        fprintf( stderr, 
-                            " stderr: incorrect option for multiple genomes (-v).\n" );
-                        exit( EXIT_FAILURE ); 
-                    }                    
-                    break;
                 default:
                     fprintf( stderr, " stderr: incorrect option: %c.\n", option );
                     exit( EXIT_FAILURE );
@@ -233,15 +216,7 @@ static void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
             " stderr: the program does not support using the reversal" );
         fprintf( stderr, " distance and a preferred genome structure.\n" );
         exit( EXIT_FAILURE );
-    }
-
-    if ( paramsPtr->distanceType == INVERSION_DIST && 
-            paramsPtr->useMultipleGenomesOneLeaf == TRUE ) {
-        fprintf( stderr, 
-            " stderr: the program does not support using the reversal" );
-        fprintf( stderr, " distance and alternative multiple genomes for a leaf.\n" );
-        exit( EXIT_FAILURE );
-    }
+    }    
 }
 
 static int readNumberGenomes( char *filename )
