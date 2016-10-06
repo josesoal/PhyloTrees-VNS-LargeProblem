@@ -63,7 +63,7 @@ int main( int argc, char **argv )
     allocateMemoryForNodes( &phyloTree, &params );//--from tree.c
     readGenomesFromRawData( &phyloTree, &params, &rdataset, &multiple );//--from tree.c 
 
-    score = createInitialTreeTopology( &phyloTree, &params, multiple, NULL, 0 ); //--from tree.c
+    score = createInitialTreeTopology( &phyloTree, &params, multiple, NULL, 0 ); //--from tree.c  
     score = VNS( &phyloTree, &params, multiple );//--from vns.c
 
     /* refine the final tree by using an exhaustive mutation procedures */

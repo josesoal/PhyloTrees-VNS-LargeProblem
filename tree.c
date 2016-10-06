@@ -389,6 +389,9 @@ static void readGenomes(
     int i, j, k;
     int endSymbol, previousEndSymbol;
 
+    endSymbol = 0; /* init var */
+    previousEndSymbol = 0; /* init var */
+
     for( i = 0; i < phyloTreePtr->numberLeaves; i++ ) {
         phyloTreePtr->nodesPtrArray[ i ]->organism = rdatasetPtr->rgenomes[ i ]->organism;
 
@@ -1039,11 +1042,12 @@ int createInitialTreeTopology(
     Tree temporalTree1, temporalTree2;
     /*NOTE: execute many times the initialization method 
     and choose the best tree generated */
-    maxIterations = 5;//10; //at least must be 1
+    maxIterations = 3;//10; //at least must be 1
 
     /* execute one init method */
     if ( paramsPtr->initMethod == R_LEAF_R_EDGE ) {
         createTreeTopologyRandomly( phyloTreePtr );
+        score = labelOptimizeTree( phyloTreePtr, paramsPtr, multiple, previousTreePtr, iteration );
     }
     else if ( paramsPtr->initMethod == R_LEAF_1BEST_EDGE ){
         temporalTree1.numberLeaves = phyloTreePtr->numberLeaves;
@@ -1080,6 +1084,7 @@ int createInitialTreeTopology(
 
         freeTree( &temporalTree1, paramsPtr );//--method from tree.c
         freeTree( &temporalTree2, paramsPtr );//--method from tree.c
+
     }
     else {
         fprintf( stderr, " stderr: incorrect initialization method\n" );
@@ -1097,6 +1102,9 @@ static void createTreeTopologyRandomly( TreePtr phyloTreePtr )
 	int i;
 	TreeNodePtr startNodePtr;	/* start node of an edge */
 	TreeNodePtr endNodePtr;		/* end node of an edge */
+
+    startNodePtr = NULL; /* init var */
+    endNodePtr = NULL; /* init var */
 
 	/* create initial tree with 3 leaves  */
 	createTreeWith3LeavesRandomly(phyloTreePtr); 
@@ -1116,6 +1124,12 @@ static void createTreeRandomLeaf_FirstBestEdge(
 {
 	int i, j, score, newScore;
 	TreeNodePtr node1Ptr, node2Ptr, node3Ptr, nodeTmpPtr, internalNodePtr;
+
+    node1Ptr        = NULL; /* init var */ 
+    node2Ptr        = NULL; /* init var */  
+    node3Ptr        = NULL; /* init var */  
+    nodeTmpPtr      = NULL; /* init var */  
+    internalNodePtr = NULL; /* init var */ 
 
     /*[CREATE INITIAL TREE with 3 LEAVES]*/
 	/* first select a random leaf as  1st node */
@@ -1226,6 +1240,13 @@ static void createTreeRandomLeaf_FirstBestEdge(
 	TreeNodePtr startNodePtr, tmpStartNodePtr;	/* start node of an edge */
 	TreeNodePtr endNodePtr, tmpEndNodePtr;		/* end node of an edge */
 	TreeNodePtr nodePtr;
+
+    startNodePtr    = NULL; /* init var */ 
+    tmpStartNodePtr = NULL; /* init var */
+    endNodePtr      = NULL; /* init var */ 
+    tmpEndNodePtr   = NULL; /* init var */
+    nodePtr         = NULL; /* init var */
+
 	for( i = 3; i < phyloTreePtr->numberLeaves; i++ ) {
 		selectLeafNodeRandomly( phyloTreePtr, &nodePtr );
 		selectInternalNode( phyloTreePtr, &internalNodePtr );
@@ -1290,6 +1311,7 @@ static void createTreeRandomLeaf_FirstBestEdge(
             }    
             j++;
         }//end while
+
 	}//end for
 }
 
@@ -1312,10 +1334,12 @@ static void createTreeRandomLeaf_FirstBestEdge(
 
 static void createTreeWith3LeavesRandomly( TreePtr phyloTreePtr )
 {
-	TreeNodePtr node1Ptr;
-	TreeNodePtr node2Ptr;
-	TreeNodePtr node3Ptr;
-	TreeNodePtr internalNodePtr;	
+	TreeNodePtr node1Ptr, node2Ptr, node3Ptr, internalNodePtr;
+
+    node1Ptr = NULL; /* init var */
+    node2Ptr = NULL; /* init var */
+    node3Ptr = NULL; /* init var */
+    internalNodePtr = NULL;	/* init var */
 
 	/* select 3 tree leaf nodes randomly and one internal node */
 	selectLeafNodeRandomly(phyloTreePtr, &node1Ptr);
@@ -1488,6 +1512,10 @@ static void addRandomLeafNodeIntoEdge( TreePtr phyloTreePtr,
 
 	/* NOTE: 
 	* the endNode is the ancestor of the startNode */
+
+    leafNodePtr     = NULL; /* init var */
+    internalNodePtr = NULL; /* init var */
+    testNodePtr     = NULL; /* init var */ 
 
 	/* select a new random leaf node and a new internal node  */
 	selectLeafNodeRandomly(phyloTreePtr, &leafNodePtr);

@@ -39,7 +39,7 @@ TreeNodePtr dequeue( QueuePtr myQueuePtr )
 {
     TreeNodePtr valuePtr; 
     QueueNodePtr tempPtr;
-    
+        
     valuePtr = myQueuePtr->headPtr->dataPtr;
     tempPtr = myQueuePtr->headPtr;
     myQueuePtr->headPtr = myQueuePtr->headPtr->nextPtr;
@@ -49,6 +49,7 @@ TreeNodePtr dequeue( QueuePtr myQueuePtr )
     }
     
     free( tempPtr );
+
     return valuePtr;
 }
 
@@ -57,3 +58,34 @@ int isEmpty( QueuePtr myQueuePtr )
 {
     return myQueuePtr->headPtr == NULL;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

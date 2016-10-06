@@ -184,12 +184,12 @@ static void initializeTreeUsingDFS( TreePtr phyloTreePtr,
 			node1Ptr = findNearestNeighbor( phyloTreePtr, nodePtr->ancestorPtr, -1, -1 );
     		node2Ptr = findNearestNeighbor( phyloTreePtr, nodePtr->leftDescPtr, node1Ptr->id, -1 );
     		node3Ptr = findNearestNeighbor( phyloTreePtr, nodePtr->rightDescPtr, node1Ptr->id, node2Ptr->id );
-
+	
 			createTspInstance( phyloTreePtr->numberGenes, node1Ptr->genome, 
 				node2Ptr->genome, node3Ptr->genome, adjacencyList );//--method from median_solvers.c
 			callSolverAndLabelNode( phyloTreePtr, nodePtr, node1Ptr, node2Ptr, 
 				node3Ptr, adjacencyList, paramsPtr->solver, paramsPtr->circular );
-			
+		
 			nodePtr->extremity = TRUE; /*node is now labeled*/
 
 			/* free memory */
@@ -269,6 +269,12 @@ static TreeNodePtr findNearestNeighbor( TreePtr phyloTreePtr,
 	TreeNodePtr nodeAuxPtr;
 	int *visited;
 
+	nodeAnsPtr = NULL; /* init var */
+	nodeAuxPtr = NULL; /* init var */
+
+	myQueue.headPtr = NULL; /* initialize head */
+	myQueue.tailPtr = NULL; /* initialize tail */
+
 	/* allocate memory */
 	visited = calloc( phyloTreePtr->numberNodes + 1, sizeof(int) );
 	if ( visited == NULL ) nomemMessage( "visited" );
@@ -280,11 +286,13 @@ static TreeNodePtr findNearestNeighbor( TreePtr phyloTreePtr,
 		nodeAnsPtr = nodePtr;
 	}
 	else {
+
 		visited[ nodePtr->id ] = TRUE;
 		enqueue( &myQueue, nodePtr );
-		
+//printQueue( myQueue.headPtr );		
 		while ( isEmpty( &myQueue ) == FALSE ) {
 			nodeAuxPtr = dequeue( &myQueue );
+
 			/* if nodeAux is labeled, and is different of the other neighbors */
 			if ( nodeAuxPtr->extremity == TRUE && nodeAuxPtr->id != idNeighbor1 && 
 												nodeAuxPtr->id != idNeighbor2 ) 
@@ -310,6 +318,7 @@ static TreeNodePtr findNearestNeighbor( TreePtr phyloTreePtr,
 				}
 			}
 		}//end while
+
 	}
 
 	/* free memory */

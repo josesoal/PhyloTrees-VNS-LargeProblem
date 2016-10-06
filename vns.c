@@ -369,6 +369,8 @@ static void randomSubtreePR(TreePtr phyloTreePtr)
 
 	i = irand(counter);/* interval: 0 <= i < counter */
 	TreeNodePtr lastEdgeNodePtr;
+	lastEdgeNodePtr = NULL; /* init var */
+
 	for (j=0; j<phyloTreePtr->numberNodes; j++){
 		if (enabled[j] == TRUE){
 			if (i == 0){
@@ -491,6 +493,8 @@ static void randomTreeBR(TreePtr phyloTreePtr)
 
 	i = irand(counter);/* interval: 0 <= i < counter */
 	TreeNodePtr newEdgeNodePtr;
+	newEdgeNodePtr = NULL; /* init var */
+
 	for (j=0; j<phyloTreePtr->numberNodes; j++){
 		if (enabled[j] == TRUE){
 			if (i == 0){

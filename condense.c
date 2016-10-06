@@ -189,8 +189,9 @@ void findSetKeysForCondensing( RawDatasetPtr rdatasetPtr, SetKeysPtr setkeysPtr 
 		setkeysPtrArray[ i ]->numberKeys = ikey;
 	}
 
-	/* determine if a sequence exists in the other rawGenomes (or is included in other sequence) */
+	/* determine if a sequence exists in ALL other rawGenomes (or is included in other sequence) */
 	CondenseKey sequenceA, sequenceB;
+	found = FALSE; /* init var */
 	ikey = 0;
 	for ( i = 0; i < rdatasetPtr->numberGenomes; i++ ) {
 		for ( j = 0; j < setkeysPtrArray[ i ]->numberKeys; j++ ) {
@@ -219,6 +220,9 @@ void findSetKeysForCondensing( RawDatasetPtr rdatasetPtr, SetKeysPtr setkeysPtr 
 				}
 				else {
 					break; /* stop the search for sequence A */
+					/* we stop the search because an intersection with sequence A must 
+						exists in ALL other rawGenomes, since an interval of condensation
+						is applied for all rawGenomes */
 				}
 			}
 			/* if intersection found add to the set of keys */
@@ -335,6 +339,7 @@ void showKeys( SetKeysPtr setkeysPtr )
 void unpackCondensedGenomes( RawDatasetPtr rdatasetPtr, SetKeysPtr setkeysPtr )
 {
 	int i, j, k, iseq, diff, gene;
+	iseq = 0; /* init var */
 
 	for ( i = setkeysPtr->numberKeys - 1; i >= 0; i-- ) {
 		diff = setkeysPtr->condkeyPtrArray[ i ]->diff;

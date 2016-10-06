@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -g -Wall # flags when *compiling*
+CFLAGS = -g -Wall -O2 # flags when *compiling*
 LFLAGS = -g -Wall # flags when *linking*
 LIBS = -lm # math library
 SOURCES = main_large.c vns.c tree.c iterate_tree.c median_solvers.c queue.c convert.c cheaptsp.c bbtsp.c inversion_median_alberto.c invdist.c dcjdist.c uf.c binencode.c random.c measure_time.c auxiliary.c condense.c stack_array.c int_queue.c
