@@ -144,7 +144,7 @@ static void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
         fprintf( stdout, "\t-o : [optional] optimization method for DCJ\n" );
         fprintf( stdout, "\t\t -o gre : Greedy Candidates opt.\n" );
         fprintf( stdout, "\t\t -o kov : Kovac opt.\n" );
-        fprintf( stdout, "\t\t(Greedy Candidates opt is used by default if option is omitted)\n" );
+        fprintf( stdout, "\t\t(Kovac opt is used by default if option is omitted)\n" );
         fprintf( stdout, "\t-r : [optional] preferred dcj genome structure \n" );
         fprintf( stdout, "\t\t -r 0 : any genome structure\n" );
         fprintf( stdout, "\t\t -r 1 : one circular chromosome\n" );
@@ -167,8 +167,7 @@ static void readCommandLine( int argc, char *argv[], ParametersPtr paramsPtr )
                     }
                     else if ( strcmp( argv[ i + 1 ], "dcj" ) == 0 ) {
                         paramsPtr->distanceType = DCJ_DIST;
-                        paramsPtr->opt = GREEDY_CANDIDATES;
-                        //paramsPtr->opt = KOVAC;
+                        paramsPtr->opt = KOVAC;
                     }
                     else {
                         fprintf( stderr, 
