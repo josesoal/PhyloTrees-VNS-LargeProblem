@@ -34,7 +34,7 @@ int main( int argc, char **argv )
     struct timeval t_ini, t_fin;
     gettimeofday( &t_ini, NULL );//---------------------------take start time--
     
-    Tree            phyloTree, tempTree;
+    Tree            phyloTree, minTree;
     RawDataset      rdataset; 
     SetKeys         setkeys;  /* set of keys for condensing genomes */
     int             minScore, score, i;
@@ -69,15 +69,16 @@ int main( int argc, char **argv )
         /* create topology and optimize tree */
         createTopologyFromNewickFormat( &phyloTree, &params );//from tree.c 
         score = labelOptimizeTree( 
-                    &phyloTree, &params, multiple, &tempTree, i );//--iterate tree.c
+                    &phyloTree, &params, multiple, &minTree, i );//--iterate tree.c
         if ( DEBUG ) { printf( "iteration %d result : %d\n", i, score ); }
-        if ( score < minScore ) minScore = score;
-
-        /* copy phyloTree into a tempTree */
-        tempTree.numberLeaves = phyloTree.numberLeaves;
-        tempTree.numberGenes = phyloTree.numberGenes;
-        allocateMemoryForNodes( &tempTree, &params );//--from tree.c
-        copyTreeInto( &tempTree, &phyloTree, TRUE, &params);//--from tree.c
+        if ( score < minScore ) { 
+            minScore = score;
+            /* copy phyloTree into a minTree */
+            minTree.numberLeaves = phyloTree.numberLeaves;
+            minTree.numberGenes = phyloTree.numberGenes;
+            allocateMemoryForNodes( &minTree, &params );//--from tree.c
+            copyTreeInto( &minTree, &phyloTree, TRUE, &params);//--from tree.c
+        }
 
         freeMultipleLeafs( &phyloTree, &multiple, &params );//--from tree.c
         freeTree( &phyloTree, &params );//--from tree.c
@@ -90,11 +91,11 @@ int main( int argc, char **argv )
     if ( SHOW_JUST_SCORE == TRUE ) 
         printf( "%d %.2f\n", minScore, timediff );
     else 
-        showResultsSmallPhylogeny( &tempTree, 
+        showResultsSmallPhylogeny( &minTree, 
             params.distanceType, minScore, timediff );//--from tree.c
 
     /* free memory */
-    freeTree( &tempTree, &params );//--from tree.c
+    freeTree( &minTree, &params );//--from tree.c
     freeKeys( rdataset.numberGenes, &setkeys );//--from condense.c
     freeRawDataset( &rdataset );//--from condense.c
 
