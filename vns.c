@@ -804,7 +804,6 @@ void showResults( TreePtr phyloTreePtr,
     printf("Total time\t\t: %.2f seconds\n", timediff);
     showTreeNewickFormat(phyloTreePtr->startingNodePtr, SHOW_BY_ID);//--from tree.c
     showTreeNewickFormat(phyloTreePtr->startingNodePtr, SHOW_BY_NAME);//--from tree.c
-    //showNodesArray(phyloTreePtr);//--method from tree.c
-    writeNewickFormatToFile( "newick_tree.txt", phyloTreePtr->startingNodePtr, SHOW_BY_NAME );//--from tree.c 
+    //showNodesArray(phyloTreePtr);//--method from tree.c 
 }
 

@@ -77,6 +77,9 @@ int main( int argc, char **argv )
     if ( SHOW_JUST_SCORE == TRUE ) printf( "%d %.2f\n", score, timediff );
     else showResults( &phyloTree, params.distanceType, score, timediff );//--from vns.c
 
+    writeNewickFormatToFile( 
+        "newick_tree.txt", phyloTree.startingNodePtr, SHOW_BY_NAME );//--from tree.c
+
     /* free memory */
     freeMultipleLeafs( &phyloTree, &multiple, &params );//--from tree.c
     freeTree( &phyloTree, &params );//--from tree.c
