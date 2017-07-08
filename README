@@ -1,1 +1,224 @@
-README
+Introduction
+============
+
+This directory contains the source code of the HELPHY software, which includes
+two programs:
+-One program is for solving the small phylogeny problem.
+-And the other is for solving the large phylogeny problem.
+
+The authors of the implementations are:
+	Jose Luis Soncco-Alvarez (jose.soncco.alvarez@gmail.com)
+	and
+	Mauricio Ayala-Rincon (ayala@unb.br)
+
+Both authors from the Group of Theory of Computation at the University of
+Brasilia.
+
+Setup
+=====
+
+The source code was tested under MAC OSX and UBUNTU LINUX platforms. As first
+step we need to execute the makefiles:
+$ make clean all -f makefile.small
+$ make clean all -f makefile.large
+
+The previous commands will generate two executables:"small_phylogeny" and 
+"large_phylogeny", which are the programs for the small and large phylogeny 
+respectively.
+
+Input and Output
+===============
+
+The "large_phylogeny" program takes as input a dataset of organisms 
+represented as signed intergers (gene order data). In the directory can be 
+found two datasets in the sub-directory "datasets": campa.txt (Campanulaceae
+ dataset) and candida.txt (Hemiascomycetes dataset). The output of this 
+program is a tree structure in the newick format and its corresponding 
+score (in terms of an evolutionary distance).
+
+The "small_phylogeny" program takes as inputs a dataset of organims and also 
+a tree structure in newick format. The output of this program is the score of 
+the tree.
+
+Aditionally, other datasets can be used for testing: condcampa5.txt and 
+condcampa9.txt. These are datasets with fewer organisms, so they are suitable 
+for doing quick tests.
+
+Usage
+=====
+
+For showing the parameter options for the "large_phylogeny" or 
+"small_phylogeny" programs just type one of the following commands:
+$ ./large_phylogeny
+$ ./small_phylogeny
+
+For example the parameter options for the "large_phylogeny" problem are:
+
+	-d : evolutionary distance 
+		 -d rev : reversal
+		 -d dcj : double-cut-join
+	-f : dataset filename
+		 -f filename
+	-k : topology in Newick format
+		 -k filename
+	-s : [optional] seed 
+		 -s some_seed
+		(seed taken from system time by default if option is omitted)
+
+	*** The following options work just for the DCJ distance (-d dcj) : 
+
+	-i : [optional] number of iterations
+		 -i number
+		(one iteration is used by default if option is omitted)
+	-o : [optional] optimization method for DCJ
+		 -o gre : Greedy Candidates opt.
+		 -o kov : Kovac opt.
+		(Kovac opt is used by default if option is omitted)
+	-r : [optional] preferred dcj genome structure 
+		 -r 0 : any genome structure
+		 -r 1 : one circular chromosome
+		 -r 2 : one or more linear chromosomes
+		 -r 3 : one circular, or one or more linear chromosomes
+		( -r 0 is used by default if option is omitted)
+
+Notice that those parameters with the tag "[optional]" are not mandatory.
+Now, we are going to see some examples how to use the 
+"large_phylogeny" program:
+
+(1) The most basic command is as follows: 
+    $ ./large_phylogeny -d rev -f datasets/condcampa5.txt
+    Notice that reversals are used as evolutionary distance, and that the 
+    dataset used is condcampa5.txt. The tree structure is saved always in a 
+    file with the name newick_tree.txt
+(2) Now, suposse that we are going to use the DCJ operations as evolutionay 
+    distance. Also, we want resctrict the internal nodes to allow only once 
+    circular chromosome. The command is as follows:
+    $ ./large_phylogeny -d dcj -f datasets/condcampa5.txt -r 1
+
+Lets see the parameter options for the "small_phylogeny" program:
+
+	-d : evolutionary distance 
+		 -d rev : reversal
+		 -d dcj : double-cut-join
+	-f : dataset filename
+		 -f filename
+	-k : topology in Newick format
+		 -k filename
+	-s : [optional] seed 
+		 -s some_seed
+		(seed taken from system time by default if option is omitted)
+
+	*** The following options work just for the DCJ distance (-d dcj) : 
+
+	-i : [optional] number of iterations
+		 -i number
+		(one iteration is used by default if option is omitted)
+	-o : [optional] optimization method for DCJ
+		 -o gre : Greedy Candidates opt.
+		 -o kov : Kovac opt.
+		(Kovac opt is used by default if option is omitted)
+	-r : [optional] preferred dcj genome structure 
+		 -r 0 : any genome structure
+		 -r 1 : one circular chromosome
+		 -r 2 : one or more linear chromosomes
+		 -r 3 : one circular, or one or more linear chromosomes
+		( -r 0 is used by default if option is omitted)
+
+We are going to see some examples how to use the "small_phylogeny" program:
+(1) The most basic command is as follows:
+    $ ./small_phylogeny -d dcj -f datasets/condcampa5.txt -k newick_tree.txt 
+    Notice that in this case, unlike the "large_phylogeny" program, we have an
+    additional parameter, that is, the tree structure in newick format.
+(2) Now, suposse we want 10 iterations for the program and use the greedy 
+    optimizer instead of the kovac optimizer. The command is as follows: 
+    $ ./small_phylogeny -d dcj -f datasets/condcampa5.txt -k newick_tree.txt 
+      -i 10 -o gre
+
+About the Files
+===============
+
+auxiliary.c         :   This file contains some auxiliary functions.
+
+bbtsp.c             :   This files contains an exact solver for the TSP 
+                        problem. This file was taken from GRAPPA software.
+
+binencode.c         :   This file contains a method for calculating the 
+                        hamming distance (breakpoint distance). This file 
+                        was taken from GRAPPA software.
+
+cheaptsp.c          :   This file contains a greedy algorithm for the TSP 
+                        problem. This file was taken from GRAPPA software.  
+
+condense.c          :   This file contains functions for condensing genomes.
+
+convert.c           :   This file contains a function for converting the 
+                        median of 3 genomes problem into a TSP problem. 
+                        This file was taken from GRAPPA software.
+
+dcjdist.c           :   This file contains functions for calculating the DCJ 
+                        distance and applying a DCJ operation.   
+
+int_queue.c         :   In this file are implemented functions for a queue 
+                        of integers.
+
+invdist.c           :   This file contains the linear time algorithm for 
+                        computing the reversal distance for signed 
+                        permutations. This file was taken from GRAPPA software.
+
+inversion_median_alberto.c  :   This file contains the algorithm for the median
+                                of 3 genomes problem (for reversals), which was 
+                                proposed by Caprara. It was taken from GRAPPA.
+
+iterate_tree.c      :   This file contains functions for labeling the nodes 
+                        and calculating the score of a tree structure.
+
+main_large.c        :   This file contains the main function for the large 
+                        phylogeny problem.
+
+main_small.c        :   This file contains the main function for the small 
+                        phylogeny problem.
+
+measure_time.c      :   This file contains a function for calculating the 
+                        differente between two timeval structures.
+
+median_solvers.c    :   This file contains functions that call all median 
+                        solvers from other files.
+
+my_structs.h        :   This file contains the definition of tree structures.
+
+queue.c             :   In this file are implemented functions for a queue 
+                        of trees.
+
+random.c            :   This file contains functions for generating random 
+                        integers and random real numbers.
+
+stack_array.c       :   In this file are implemented functions for a stack 
+                        of strings.
+
+structs.h           :   This file contains the definition of structures 
+                        used in GRAPPA.
+
+tree.c              :   This file contains functions for creating and 
+                        modifying tree structures.
+
+uf.c                :   This file contains some functions used in "invdist.c"
+
+vns.c               :   This file contains functions that implements the 
+                        variable neighborhood search.
+
+References
+==========
+
+(1) Soncco-Alvarez, J. L., & Ayala-Rincon, M. (2017). Variable Neighborhood
+Search for the Large Phylogeny Problem using Gene Order Data. Accepted and
+to be published at CEC 2017.
+
+
+Bug Reporting
+=============
+
+If you find any problem in our programs please contact us to: 
+jose.soncco.alvarez@gmail.com
+
+-------------------------------------------------------------------------------
+
